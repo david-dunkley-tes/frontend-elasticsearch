@@ -5,7 +5,7 @@ using System.Text.Json.Nodes;
 using ElasticHttpMethod = Elastic.Transport.HttpMethod;
 using NetHttpMethod = System.Net.Http.HttpMethod;
 
-namespace StudentSearch.Api.Services;
+namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
 public sealed class ElasticsearchGateway : IElasticsearchGateway
 {

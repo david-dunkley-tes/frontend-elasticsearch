@@ -1,6 +1,6 @@
 using System.Text.Json.Nodes;
 
-namespace StudentSearch.Api.Services;
+namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
 public interface IElasticsearchGateway
 {

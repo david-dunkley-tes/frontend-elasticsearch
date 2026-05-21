@@ -1,5 +1,6 @@
 using Elastic.Clients.Elasticsearch;
 using StudentSearch.Api.Configuration;
+using StudentSearch.Api.Infrastructure.Elasticsearch;
 using StudentSearch.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -20,9 +21,11 @@ builder.Services.AddSingleton(sp =>
     var configuration = sp.GetRequiredService<SearchConfiguration>();
     return new ElasticsearchClient(new Uri(configuration.ElasticsearchUrl));
 });
-builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 builder.Services.AddScoped<IStudentSearchService, StudentSearchService>();
 builder.Services.AddScoped<IReindexService, ReindexService>();
+builder.Services.AddScoped<IStudentSearchIndex, ElasticsearchStudentSearchIndex>();
+builder.Services.AddScoped<IStudentIndexSeeder, ElasticsearchStudentIndexSeeder>();
+builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 
 var app = builder.Build();
 
