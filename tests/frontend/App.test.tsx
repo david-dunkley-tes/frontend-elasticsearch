@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/frontend/src/App';
-import type { SearchResponse } from '../../src/frontend/src/types';
+import type { SavedSearch, SearchResponse } from '../../src/frontend/src/types';
 
 const baseResponse: SearchResponse = {
   total: 2,
@@ -72,11 +72,65 @@ const baseResponse: SearchResponse = {
   },
 };
 
-function mockSearchResponse(response: SearchResponse = baseResponse) {
-  vi.mocked(fetch).mockResolvedValueOnce({
-    ok: true,
-    json: async () => response,
-  } as Response);
+const savedSearches: SavedSearch[] = [
+  {
+    id: 'saved-1',
+    name: 'Westbrook saved',
+    query: 'West',
+    filters: { school: ['westbrook college'] },
+    sort: 'relevance',
+    pageSize: 10,
+    createdAt: '2026-05-21T12:00:00Z',
+  },
+];
+
+function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], initialSavedSearches: SavedSearch[] = []) {
+  const searchQueue = [...searchResponses];
+  let savedSearchQueue = [...initialSavedSearches];
+
+  vi.mocked(fetch).mockImplementation(async (input, init) => {
+    const url = String(input);
+    const method = init?.method ?? 'GET';
+
+    if (url.endsWith('/api/search')) {
+      return jsonResponse(searchQueue.shift() ?? searchResponses.at(-1) ?? baseResponse);
+    }
+
+    if (url.endsWith('/api/saved-searches') && method === 'GET') {
+      return jsonResponse(savedSearchQueue);
+    }
+
+    if (url.endsWith('/api/saved-searches') && method === 'POST') {
+      const body = JSON.parse(String(init?.body));
+      const savedSearch: SavedSearch = {
+        id: 'saved-new',
+        name: body.name,
+        query: body.query,
+        filters: body.filters,
+        sort: body.sort,
+        pageSize: body.pageSize,
+        createdAt: '2026-05-21T13:00:00Z',
+      };
+      savedSearchQueue = [savedSearch, ...savedSearchQueue];
+      return jsonResponse(savedSearch, 201);
+    }
+
+    if (url.includes('/api/saved-searches/') && method === 'DELETE') {
+      savedSearchQueue = savedSearchQueue.filter((savedSearch) => !url.endsWith(savedSearch.id));
+      return { ok: true, text: async () => '' } as Response;
+    }
+
+    return jsonResponse({});
+  });
+}
+
+function jsonResponse(body: unknown, status = 200) {
+  return {
+    ok: status >= 200 && status < 300,
+    status,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  } as Response;
 }
 
 async function waitForInitialSearch() {
@@ -99,7 +153,7 @@ afterEach(() => {
 
 describe('App', () => {
   it('renders search results and student details returned by the API', async () => {
-    mockSearchResponse();
+    installFetchMock();
 
     render(<App />);
 
@@ -113,12 +167,14 @@ describe('App', () => {
 
   it('sends free text search changes to the API and resets to page one', async () => {
     const user = userEvent.setup();
-    mockSearchResponse();
-    mockSearchResponse({
-      ...baseResponse,
-      total: 1,
-      results: [baseResponse.results[0]],
-    });
+    installFetchMock([
+      baseResponse,
+      {
+        ...baseResponse,
+        total: 1,
+        results: [baseResponse.results[0]],
+      },
+    ]);
 
     render(<App />);
     await waitForInitialSearch();
@@ -137,21 +193,23 @@ describe('App', () => {
 
   it('sends selected facet filters in subsequent search requests', async () => {
     const user = userEvent.setup();
-    mockSearchResponse();
-    mockSearchResponse({
-      ...baseResponse,
-      facets: {
-        ...baseResponse.facets,
-        school: {
-          ...baseResponse.facets.school,
-          selected: ['westbrook college'],
-          options: [
-            { value: 'westbrook college', label: 'Westbrook College', count: 1, selected: true },
-            { value: 'eastfield school', label: 'Eastfield School', count: 1, selected: false },
-          ],
+    installFetchMock([
+      baseResponse,
+      {
+        ...baseResponse,
+        facets: {
+          ...baseResponse.facets,
+          school: {
+            ...baseResponse.facets.school,
+            selected: ['westbrook college'],
+            options: [
+              { value: 'westbrook college', label: 'Westbrook College', count: 1, selected: true },
+              { value: 'eastfield school', label: 'Eastfield School', count: 1, selected: false },
+            ],
+          },
         },
       },
-    });
+    ]);
 
     render(<App />);
     await waitForInitialSearch();
@@ -167,7 +225,7 @@ describe('App', () => {
   });
 
   it('shows request and response data when debug mode is enabled', async () => {
-    mockSearchResponse();
+    installFetchMock();
 
     render(<App />);
     await waitForInitialSearch();
@@ -175,5 +233,58 @@ describe('App', () => {
     expect(screen.getByRole('heading', { name: 'Debug Mode' })).toBeInTheDocument();
     expect(screen.getByText(/"debugMode": true/)).toBeInTheDocument();
     expect(screen.getByText(/"total": 2/)).toBeInTheDocument();
+  });
+
+  it('saves the current search and adds it to the saved search list', async () => {
+    const user = userEvent.setup();
+    installFetchMock();
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    await user.type(screen.getByPlaceholderText(/name this search/i), 'Westbrook current');
+    await user.click(screen.getByRole('button', { name: /save/i }));
+
+    await waitFor(() => {
+      expect(screen.getByText('Westbrook current')).toBeInTheDocument();
+    });
+    const saveCall = vi.mocked(fetch).mock.calls.find(([url, init]) => String(url).endsWith('/api/saved-searches') && init?.method === 'POST');
+    expect(JSON.parse(String(saveCall?.[1]?.body))).toMatchObject({
+      name: 'Westbrook current',
+      filters: {},
+      pageSize: 10,
+    });
+  });
+
+  it('restores a saved search into the active search request', async () => {
+    const user = userEvent.setup();
+    installFetchMock([baseResponse, baseResponse], savedSearches);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    await user.click(screen.getByRole('button', { name: /apply saved search westbrook saved/i }));
+
+    await waitFor(() => {
+      expect(lastSearchRequest()).toMatchObject({
+        query: 'West',
+        filters: { school: ['westbrook college'] },
+        page: 1,
+      });
+    });
+  });
+
+  it('deletes a saved search from the saved search list', async () => {
+    const user = userEvent.setup();
+    installFetchMock([baseResponse], savedSearches);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    await user.click(screen.getByRole('button', { name: /delete saved search westbrook saved/i }));
+
+    await waitFor(() => {
+      expect(screen.queryByText('Westbrook saved')).not.toBeInTheDocument();
+    });
   });
 });

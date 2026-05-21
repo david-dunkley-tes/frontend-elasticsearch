@@ -15,10 +15,19 @@ Elastic .NET SDK:           9.4.0
 ```text
 /
   docker-compose.yml
+  AGENTS.md
   data/students.seed.json
+  tests/backend
+  tests/frontend
   src/frontend
   src/backend
 ```
+
+## Agent Workflow
+
+This repo defines a `/feature-done` workflow in `AGENTS.md` and `.codex/commands/feature-done.md`.
+
+When requested, it builds the backend and frontend, runs backend and frontend tests, updates markdown documentation for drift, and creates a git commit. It must not push; pushing remains a manual user decision.
 
 ## Ports
 
@@ -67,6 +76,8 @@ npm run dev
 - Facets are returned from `POST /api/search`.
 - Facets use self-excluding counts.
 - Trust can be `null`; the UI displays this as `No trust`.
+- Searches can be saved, reapplied, and deleted from the frontend.
+- Saved searches are stored in `data/saved-searches.json` by default.
 
 ## Useful Test Searches
 
@@ -108,6 +119,30 @@ The service layer must stay decoupled from Elasticsearch. Application services d
 ### `POST /api/admin/reindex`
 
 Development-only endpoint. Deletes and recreates the configured Elasticsearch index, then bulk indexes `data/students.seed.json`.
+
+### `GET /api/saved-searches`
+
+Returns saved searches ordered by creation time, newest first.
+
+### `POST /api/saved-searches`
+
+Saves the current query, filters, sort, and page size.
+
+```json
+{
+  "name": "Year 8 Harrington",
+  "query": "harrington",
+  "filters": {
+    "yearGroup": ["year 8"]
+  },
+  "sort": "relevance",
+  "pageSize": 10
+}
+```
+
+### `DELETE /api/saved-searches/{id}`
+
+Deletes a saved search.
 
 ### `GET /api/health`
 

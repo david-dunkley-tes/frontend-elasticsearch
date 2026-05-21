@@ -8,3 +8,4 @@ dist/
 .idea/
 *.user
 *.suo
+data/saved-searches.json

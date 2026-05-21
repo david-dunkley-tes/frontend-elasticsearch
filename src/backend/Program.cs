@@ -23,6 +23,7 @@ builder.Services.AddSingleton(sp =>
 });
 builder.Services.AddScoped<IStudentSearchService, StudentSearchService>();
 builder.Services.AddScoped<IReindexService, ReindexService>();
+builder.Services.AddSingleton<ISavedSearchService, SavedSearchService>();
 builder.Services.AddScoped<IStudentSearchIndex, ElasticsearchStudentSearchIndex>();
 builder.Services.AddScoped<IStudentIndexSeeder, ElasticsearchStudentIndexSeeder>();
 builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();

@@ -57,3 +57,21 @@ export type SearchRequest = {
   pageSize: number;
   debugMode: boolean;
 };
+
+export type SavedSearch = {
+  id: string;
+  name: string;
+  query: string;
+  filters: Filters;
+  sort: string;
+  pageSize: number;
+  createdAt: string;
+};
+
+export type SaveSearchRequest = {
+  name: string;
+  query: string;
+  filters: Filters;
+  sort: string;
+  pageSize: number;
+};

@@ -1,13 +1,14 @@
 import React from 'react';
-import { reindexStudents, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { DebugPanel } from './components/DebugPanel';
 import { FacetGroup } from './components/FacetGroup';
 import { ResultsPanel } from './components/ResultsPanel';
 import { SearchBox } from './components/SearchBox';
+import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
-import type { Filters, SearchResponse } from './types';
+import type { Filters, SavedSearch, SearchResponse } from './types';
 
 export function App() {
   const [query, setQuery] = React.useState('');
@@ -16,7 +17,10 @@ export function App() {
   const [debugMode, setDebugMode] = React.useState(true);
   const [response, setResponse] = React.useState<SearchResponse | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [savedSearches, setSavedSearches] = React.useState<SavedSearch[]>([]);
+  const [saveName, setSaveName] = React.useState('');
   const [loading, setLoading] = React.useState(false);
+  const [savingSearch, setSavingSearch] = React.useState(false);
   const [reindexing, setReindexing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
   const pageSize = 10;
@@ -46,6 +50,12 @@ export function App() {
 
     return () => controller.abort();
   }, [requestPayload]);
+
+  React.useEffect(() => {
+    listSavedSearches()
+      .then(setSavedSearches)
+      .catch((err: Error) => setError(err.message));
+  }, []);
 
   const selectedResult = response?.results.find((result) => result.id === selectedId) ?? response?.results[0] ?? null;
   const pageCount = response ? Math.max(1, Math.ceil(response.total / pageSize)) : 1;
@@ -94,6 +104,42 @@ export function App() {
     }
   }
 
+  async function saveCurrentSearch() {
+    setSavingSearch(true);
+    setError(null);
+    try {
+      const savedSearch = await saveSearch({
+        name: saveName,
+        query,
+        filters,
+        sort: requestPayload.sort,
+        pageSize,
+      });
+      setSavedSearches((current) => [savedSearch, ...current]);
+      setSaveName('');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Save search failed');
+    } finally {
+      setSavingSearch(false);
+    }
+  }
+
+  function applySavedSearch(savedSearch: SavedSearch) {
+    setQuery(savedSearch.query);
+    setFilters(savedSearch.filters);
+    setPage(1);
+  }
+
+  async function removeSavedSearch(id: string) {
+    setError(null);
+    try {
+      await deleteSavedSearch(id);
+      setSavedSearches((current) => current.filter((savedSearch) => savedSearch.id !== id));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Delete saved search failed');
+    }
+  }
+
   return (
     <main className="app-shell">
       <TopBar debugMode={debugMode} reindexing={reindexing} onDebugModeChange={setDebugMode} onReindex={reindex} />
@@ -102,6 +148,15 @@ export function App() {
 
       <section className="workspace">
         <aside className="filters-panel">
+          <SavedSearchesPanel
+            savedSearches={savedSearches}
+            saveName={saveName}
+            saving={savingSearch}
+            onSaveNameChange={setSaveName}
+            onSave={saveCurrentSearch}
+            onApply={applySavedSearch}
+            onDelete={removeSavedSearch}
+          />
           <h2>Filters</h2>
           {response &&
             Object.entries(response.facets).map(([facetId, facet]) => (
