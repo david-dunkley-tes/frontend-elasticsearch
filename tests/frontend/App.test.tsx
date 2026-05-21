@@ -272,6 +272,38 @@ describe('App', () => {
     });
   });
 
+  it('drills down by school from a result card', async () => {
+    const user = userEvent.setup();
+    installFetchMock([baseResponse, baseResponse]);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    const avaCard = screen.getByLabelText('Student result Ava Harrington');
+    await user.click(within(avaCard).getByRole('button', { name: 'Westbrook College' }));
+
+    await waitFor(() => {
+      expect(lastSearchRequest().filters).toEqual({ school: ['westbrook college'] });
+      expect(new URLSearchParams(window.location.search).getAll('school')).toEqual(['westbrook college']);
+    });
+  });
+
+  it('drills down by trust from the student detail panel', async () => {
+    const user = userEvent.setup();
+    installFetchMock([baseResponse, baseResponse]);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    const detailPanel = screen.getByRole('heading', { name: 'Student detail' }).closest('aside')!;
+    await user.click(within(detailPanel).getByRole('button', { name: 'North Learning Trust' }));
+
+    await waitFor(() => {
+      expect(lastSearchRequest().filters).toEqual({ trust: ['north learning trust'] });
+      expect(new URLSearchParams(window.location.search).getAll('trust')).toEqual(['north learning trust']);
+    });
+  });
+
   it('shows request and response data when debug mode is enabled', async () => {
     installFetchMock();
 

@@ -3,9 +3,10 @@ import { Highlights } from './Highlights';
 
 type StudentDetailProps = {
   result: SearchResult;
+  onDrillDown: (facetId: string, value: string) => void;
 };
 
-export function StudentDetail({ result }: StudentDetailProps) {
+export function StudentDetail({ result, onDrillDown }: StudentDetailProps) {
   return (
     <div className="detail-content">
       <div>
@@ -22,12 +23,24 @@ export function StudentDetail({ result }: StudentDetailProps) {
       </div>
       <div>
         <span className="eyebrow">School</span>
-        <h3>{result.school.name}</h3>
+        <h3>
+          <button className="detail-drilldown-link" onClick={() => onDrillDown('school', toFacetValue(result.school.name))}>
+            {result.school.name}
+          </button>
+        </h3>
         <p>{result.school.address}</p>
       </div>
       <div>
         <span className="eyebrow">Trust</span>
-        <h3>{result.trust?.name ?? 'No trust'}</h3>
+        <h3>
+          {result.trust ? (
+            <button className="detail-drilldown-link" onClick={() => onDrillDown('trust', toFacetValue(result.trust?.name ?? ''))}>
+              {result.trust.name}
+            </button>
+          ) : (
+            'No trust'
+          )}
+        </h3>
       </div>
       <div>
         <span className="eyebrow">Matched fields</span>
@@ -35,4 +48,8 @@ export function StudentDetail({ result }: StudentDetailProps) {
       </div>
     </div>
   );
+}
+
+function toFacetValue(label: string) {
+  return label.trim().toLocaleLowerCase();
 }

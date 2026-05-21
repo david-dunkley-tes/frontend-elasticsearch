@@ -78,6 +78,7 @@ npm run dev
 - Trust can be `null`; the UI displays this as `No trust`.
 - Result cards show whether a text search matched student, school, or trust fields.
 - Search query, selected filters, and page can be shared through the URL query string.
+- School and trust names in results can be used to drill down into filtered searches.
 - Searches can be saved, reapplied, and deleted from the frontend.
 - Saved searches are stored in `data/saved-searches.json` by default.
 
@@ -100,6 +101,12 @@ Northshire
 Riverside
 Year 8
 Station Road
+Southbank
+City Learning
+Cedar Grove
+Harbour View
+Beacon Hill
+No trust
 ```
 
 ## Backend Structure Rule

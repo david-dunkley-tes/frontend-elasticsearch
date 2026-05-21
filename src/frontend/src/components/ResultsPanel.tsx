@@ -12,6 +12,7 @@ type ResultsPanelProps = {
   pageCount: number;
   onSelect: (id: string) => void;
   onPageChange: (page: number) => void;
+  onDrillDown: (facetId: string, value: string) => void;
 };
 
 export function ResultsPanel({
@@ -24,6 +25,7 @@ export function ResultsPanel({
   pageCount,
   onSelect,
   onPageChange,
+  onDrillDown,
 }: ResultsPanelProps) {
   return (
     <section className="results-panel">
@@ -53,6 +55,7 @@ export function ResultsPanel({
             result={result}
             selected={result.id === selectedResult?.id}
             onSelect={onSelect}
+            onDrillDown={onDrillDown}
           />
         ))}
       </div>
@@ -78,16 +81,23 @@ function StudentResultCard({
   result,
   selected,
   onSelect,
+  onDrillDown,
 }: {
   result: SearchResult;
   selected: boolean;
   onSelect: (id: string) => void;
+  onDrillDown: (facetId: string, value: string) => void;
 }) {
   const matchedFieldCount = Object.keys(result.highlights).length;
   const matchTypes = getMatchTypes(result);
 
   return (
-    <button className={`result-card ${selected ? 'selected' : ''}`} onClick={() => onSelect(result.id)} aria-pressed={selected}>
+    <article
+      className={`result-card ${selected ? 'selected' : ''}`}
+      onClick={() => onSelect(result.id)}
+      aria-label={`Student result ${result.student.fullName}`}
+      aria-current={selected ? 'true' : undefined}
+    >
       <div className="result-card-header">
         <div className="student-identity">
           <strong>{result.student.fullName}</strong>
@@ -115,7 +125,16 @@ function StudentResultCard({
       <div className="student-card-details">
         <div>
           <Building2 size={15} />
-          <span>{result.school.name}</span>
+          <button
+            className="drilldown-link"
+            onClick={(event) => {
+              event.stopPropagation();
+              onDrillDown('school', toFacetValue(result.school.name));
+            }}
+            title={`Filter by ${result.school.name}`}
+          >
+            {result.school.name}
+          </button>
         </div>
         <div>
           <MapPin size={15} />
@@ -123,7 +142,20 @@ function StudentResultCard({
         </div>
         <div>
           <Network size={15} />
-          <span>{result.trust?.name ?? 'No trust'}</span>
+          {result.trust ? (
+            <button
+              className="drilldown-link"
+              onClick={(event) => {
+                event.stopPropagation();
+                onDrillDown('trust', toFacetValue(result.trust?.name ?? ''));
+              }}
+              title={`Filter by ${result.trust.name}`}
+            >
+              {result.trust.name}
+            </button>
+          ) : (
+            <span>No trust</span>
+          )}
         </div>
       </div>
 
@@ -133,8 +165,12 @@ function StudentResultCard({
       </div>
 
       <Highlights highlights={result.highlights} />
-    </button>
+    </article>
   );
+}
+
+function toFacetValue(label: string) {
+  return label.trim().toLocaleLowerCase();
 }
 
 function getMatchTypes(result: SearchResult) {

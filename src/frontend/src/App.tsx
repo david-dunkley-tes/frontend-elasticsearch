@@ -115,6 +115,11 @@ export function App() {
     setPage(1);
   }
 
+  function drillDownFilter(facetId: string, value: string) {
+    setFilters((current) => ({ ...current, [facetId]: [value] }));
+    setPage(1);
+  }
+
   async function reindex() {
     setReindexing(true);
     setError(null);
@@ -199,11 +204,16 @@ export function App() {
           pageCount={pageCount}
           onSelect={setSelectedId}
           onPageChange={setPage}
+          onDrillDown={drillDownFilter}
         />
 
         <aside className="detail-panel">
           <h2>Student detail</h2>
-          {selectedResult ? <StudentDetail result={selectedResult} /> : <div className="state-message">Select a student.</div>}
+          {selectedResult ? (
+            <StudentDetail result={selectedResult} onDrillDown={drillDownFilter} />
+          ) : (
+            <div className="state-message">Select a student.</div>
+          )}
         </aside>
       </section>
 

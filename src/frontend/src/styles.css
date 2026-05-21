@@ -281,6 +281,11 @@ input {
   background: #f3fafb;
 }
 
+.result-card:focus-visible {
+  outline: 2px solid #2f7d8b;
+  outline-offset: -2px;
+}
+
 .result-card.selected {
   box-shadow: inset 4px 0 0 #2f7d8b;
 }
@@ -371,6 +376,31 @@ input {
 .student-card-details svg {
   color: #68798a;
   margin-top: 2px;
+}
+
+.drilldown-link,
+.detail-drilldown-link {
+  border: 0;
+  background: transparent;
+  color: #1f6674;
+  cursor: pointer;
+  font: inherit;
+  font-weight: 700;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  text-decoration-color: #9cc4cc;
+  text-underline-offset: 3px;
+}
+
+.drilldown-link:hover,
+.detail-drilldown-link:hover {
+  color: #164d58;
+  text-decoration-color: currentColor;
+}
+
+.detail-drilldown-link {
+  font-size: inherit;
 }
 
 .student-card-footer {
