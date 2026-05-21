@@ -75,6 +75,10 @@ Station Road
 
 ## API
 
+## Backend Structure Rule
+
+`Program.cs` should stay composition-only: service registration, middleware, and endpoint extension calls. API endpoints, Elasticsearch access, search logic, reindexing, and models should live in focused files under `src/backend`.
+
 ### `POST /api/search`
 
 ```json
