@@ -266,25 +266,126 @@ input {
 
 .result-card {
   display: grid;
-  gap: 5px;
+  gap: 12px;
   width: 100%;
   border: 0;
   border-bottom: 1px solid #e2e7ee;
   background: #ffffff;
-  padding: 14px 16px;
+  padding: 16px;
   text-align: left;
   cursor: pointer;
 }
 
 .result-card:hover,
 .result-card.selected {
-  background: #f0f8fa;
+  background: #f3fafb;
+}
+
+.result-card.selected {
+  box-shadow: inset 4px 0 0 #2f7d8b;
 }
 
 .result-card-header {
   display: flex;
   justify-content: space-between;
-  gap: 12px;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.student-identity {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.student-identity strong {
+  color: #17212e;
+  font-size: 17px;
+  line-height: 1.25;
+}
+
+.student-identity span,
+.year-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #697789;
+  font-size: 12px;
+}
+
+.year-badge {
+  flex: 0 0 auto;
+  min-height: 28px;
+  border: 1px solid #c9d7df;
+  border-radius: 999px;
+  background: #eef6f8;
+  color: #245f69;
+  font-weight: 700;
+  padding: 0 10px;
+}
+
+.student-card-details {
+  display: grid;
+  gap: 7px;
+}
+
+.match-type-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.match-type {
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0;
+  padding: 4px 8px;
+  text-transform: uppercase;
+}
+
+.match-type.student {
+  background: #e8f3ff;
+  color: #185c9d;
+}
+
+.match-type.school {
+  background: #eaf7ed;
+  color: #226b35;
+}
+
+.match-type.trust {
+  background: #fff2d8;
+  color: #7a4d00;
+}
+
+.student-card-details div {
+  display: grid;
+  grid-template-columns: 18px 1fr;
+  gap: 8px;
+  align-items: start;
+  color: #354251;
+  line-height: 1.35;
+}
+
+.student-card-details svg {
+  color: #68798a;
+  margin-top: 2px;
+}
+
+.student-card-footer {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.student-card-footer span {
+  border: 1px solid #d8e0e8;
+  border-radius: 999px;
+  background: #f7f9fb;
+  color: #5d6c7d;
+  font-size: 12px;
+  padding: 4px 8px;
 }
 
 .trust-line {

@@ -28,9 +28,11 @@ const baseResponse: SearchResponse = {
         name: 'North Learning Trust',
       },
       highlights: {
+        'student.fullName': ['Ava <mark>Harrington</mark>'],
         'school.name': ['<mark>Westbrook</mark> College'],
+        'trust.name': ['North Learning <mark>Trust</mark>'],
       },
-      score: 3.42,
+      score: null,
     },
     {
       id: 'student-2',
@@ -163,6 +165,10 @@ describe('App', () => {
     expect(screen.getAllByText('Westbrook College').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Ava Harrington' })).toBeInTheDocument();
     expect(screen.getAllByText('North Learning Trust').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('No score').length).toBeGreaterThan(0);
+    expect(screen.getByText('Student match')).toBeInTheDocument();
+    expect(screen.getByText('School match')).toBeInTheDocument();
+    expect(screen.getByText('Trust match')).toBeInTheDocument();
   });
 
   it('sends free text search changes to the API and resets to page one', async () => {

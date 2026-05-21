@@ -1,4 +1,4 @@
-import { AlertTriangle, ChevronLeft, ChevronRight } from 'lucide-react';
+import { AlertTriangle, Building2, ChevronLeft, ChevronRight, GraduationCap, Hash, MapPin, Network } from 'lucide-react';
 import type { SearchResponse, SearchResult } from '../types';
 import { Highlights } from './Highlights';
 
@@ -48,21 +48,12 @@ export function ResultsPanel({
 
       <div className="result-list">
         {response?.results.map((result) => (
-          <button
+          <StudentResultCard
             key={result.id}
-            className={`result-card ${result.id === selectedResult?.id ? 'selected' : ''}`}
-            onClick={() => onSelect(result.id)}
-          >
-            <div className="result-card-header">
-              <strong>{result.student.fullName}</strong>
-              <span>{result.student.yearGroup}</span>
-            </div>
-            <div className="muted">ID {result.student.id}</div>
-            <div>{result.school.name}</div>
-            <div className="muted">{result.school.address}</div>
-            <div className="trust-line">{result.trust?.name ?? 'No trust'}</div>
-            <Highlights highlights={result.highlights} />
-          </button>
+            result={result}
+            selected={result.id === selectedResult?.id}
+            onSelect={onSelect}
+          />
         ))}
       </div>
 
@@ -81,4 +72,90 @@ export function ResultsPanel({
       </div>
     </section>
   );
+}
+
+function StudentResultCard({
+  result,
+  selected,
+  onSelect,
+}: {
+  result: SearchResult;
+  selected: boolean;
+  onSelect: (id: string) => void;
+}) {
+  const matchedFieldCount = Object.keys(result.highlights).length;
+  const matchTypes = getMatchTypes(result);
+
+  return (
+    <button className={`result-card ${selected ? 'selected' : ''}`} onClick={() => onSelect(result.id)} aria-pressed={selected}>
+      <div className="result-card-header">
+        <div className="student-identity">
+          <strong>{result.student.fullName}</strong>
+          <span>
+            <Hash size={13} />
+            {result.student.id}
+          </span>
+        </div>
+        <span className="year-badge">
+          <GraduationCap size={14} />
+          {result.student.yearGroup}
+        </span>
+      </div>
+
+      {matchTypes.length > 0 && (
+        <div className="match-type-row" aria-label="Matched result types">
+          {matchTypes.map((matchType) => (
+            <span className={`match-type ${matchType.kind}`} key={matchType.kind}>
+              {matchType.label}
+            </span>
+          ))}
+        </div>
+      )}
+
+      <div className="student-card-details">
+        <div>
+          <Building2 size={15} />
+          <span>{result.school.name}</span>
+        </div>
+        <div>
+          <MapPin size={15} />
+          <span>{result.school.address}</span>
+        </div>
+        <div>
+          <Network size={15} />
+          <span>{result.trust?.name ?? 'No trust'}</span>
+        </div>
+      </div>
+
+      <div className="student-card-footer">
+        <span>{matchedFieldCount > 0 ? `${matchedFieldCount} matched field${matchedFieldCount === 1 ? '' : 's'}` : 'No highlighted fields'}</span>
+        <span>{typeof result.score === 'number' ? `Score ${result.score.toFixed(2)}` : 'No score'}</span>
+      </div>
+
+      <Highlights highlights={result.highlights} />
+    </button>
+  );
+}
+
+function getMatchTypes(result: SearchResult) {
+  const fields = Object.keys(result.highlights);
+  const matches = [
+    {
+      kind: 'student',
+      label: 'Student match',
+      matched: fields.some((field) => field.startsWith('student.') || field === 'studentId'),
+    },
+    {
+      kind: 'school',
+      label: 'School match',
+      matched: fields.some((field) => field.startsWith('school.')),
+    },
+    {
+      kind: 'trust',
+      label: 'Trust match',
+      matched: fields.some((field) => field.startsWith('trust.')),
+    },
+  ];
+
+  return matches.filter((match) => match.matched);
 }

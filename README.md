@@ -76,6 +76,7 @@ npm run dev
 - Facets are returned from `POST /api/search`.
 - Facets use self-excluding counts.
 - Trust can be `null`; the UI displays this as `No trust`.
+- Result cards show whether a text search matched student, school, or trust fields.
 - Searches can be saved, reapplied, and deleted from the frontend.
 - Saved searches are stored in `data/saved-searches.json` by default.
 

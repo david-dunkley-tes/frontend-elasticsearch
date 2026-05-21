@@ -9,3 +9,5 @@ dist/
 *.user
 *.suo
 data/saved-searches.json
+.chrome-preview/
+student-card-preview.png

@@ -21,7 +21,7 @@ export type SearchResult = {
   school: School;
   trust: Trust;
   highlights: Record<string, string[]>;
-  score?: number;
+  score?: number | null;
 };
 
 export type FacetOption = {
