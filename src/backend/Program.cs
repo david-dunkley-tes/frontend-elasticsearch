@@ -1,3 +1,4 @@
+using Elastic.Clients.Elasticsearch;
 using StudentSearch.Api.Configuration;
 using StudentSearch.Api.Services;
 
@@ -13,8 +14,13 @@ builder.Services.AddCors(options =>
             .AllowAnyMethod());
 });
 
-builder.Services.AddHttpClient<IElasticsearchGateway, ElasticsearchGateway>();
 builder.Services.AddSingleton<SearchConfiguration>();
+builder.Services.AddSingleton(sp =>
+{
+    var configuration = sp.GetRequiredService<SearchConfiguration>();
+    return new ElasticsearchClient(new Uri(configuration.ElasticsearchUrl));
+});
+builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 builder.Services.AddScoped<IStudentSearchService, StudentSearchService>();
 builder.Services.AddScoped<IReindexService, ReindexService>();
 

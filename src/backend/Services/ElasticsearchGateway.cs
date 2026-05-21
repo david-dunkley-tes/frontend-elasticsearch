@@ -1,37 +1,106 @@
-using System.Text;
+using Elastic.Clients.Elasticsearch;
+using Elastic.Transport;
 using System.Text.Json;
 using System.Text.Json.Nodes;
-using StudentSearch.Api.Configuration;
+using ElasticHttpMethod = Elastic.Transport.HttpMethod;
+using NetHttpMethod = System.Net.Http.HttpMethod;
 
 namespace StudentSearch.Api.Services;
 
 public sealed class ElasticsearchGateway : IElasticsearchGateway
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
-    private readonly HttpClient _httpClient;
+    private readonly ElasticsearchClient _client;
 
-    public ElasticsearchGateway(HttpClient httpClient, SearchConfiguration configuration)
+    public ElasticsearchGateway(ElasticsearchClient client)
     {
-        _httpClient = httpClient;
-        _httpClient.BaseAddress = new Uri(configuration.ElasticsearchUrl);
+        _client = client;
     }
 
-    public async Task<JsonNode?> SendAsync(HttpMethod method, string path, JsonNode? body = null)
+    public async Task<JsonNode?> SendAsync(NetHttpMethod method, string path, JsonNode? body = null)
     {
-        using var request = new HttpRequestMessage(method, path);
-        if (body is not null)
-        {
-            request.Content = new StringContent(body.ToJsonString(JsonOptions), Encoding.UTF8, "application/json");
-        }
-
-        using var response = await _httpClient.SendAsync(request);
-        var text = await response.Content.ReadAsStringAsync();
-
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Elasticsearch {method} {path} failed with {(int)response.StatusCode}: {text}");
-        }
+        var text = body is null
+            ? await SendWithoutBodyAsync(method, path)
+            : await SendRawAsync(method, path, body.ToJsonString(JsonOptions));
 
         return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text);
+    }
+
+    public async Task<string> SendRawAsync(NetHttpMethod method, string path, string body)
+    {
+        var response = await _client.Transport.RequestAsync<StringResponse>(
+            ToElasticMethod(method),
+            path,
+            PostData.String(body));
+
+        EnsureValid(response, method, path);
+        return response.Body ?? string.Empty;
+    }
+
+    public async Task<bool> DeleteIfExistsAsync(string path)
+    {
+        var response = await _client.Transport.RequestAsync<StringResponse>(
+            ElasticHttpMethod.DELETE,
+            path);
+
+        if (response.ApiCallDetails?.HasSuccessfulStatusCode == true)
+        {
+            return true;
+        }
+
+        var statusCode = response.ApiCallDetails?.HttpStatusCode;
+        if (statusCode == 404)
+        {
+            return false;
+        }
+
+        throw CreateException(NetHttpMethod.Delete, path, response);
+    }
+
+    private async Task<string> SendWithoutBodyAsync(NetHttpMethod method, string path)
+    {
+        var response = await _client.Transport.RequestAsync<StringResponse>(ToElasticMethod(method), path);
+        EnsureValid(response, method, path);
+        return response.Body ?? string.Empty;
+    }
+
+    private static ElasticHttpMethod ToElasticMethod(NetHttpMethod method)
+    {
+        if (method == NetHttpMethod.Get)
+        {
+            return ElasticHttpMethod.GET;
+        }
+
+        if (method == NetHttpMethod.Post)
+        {
+            return ElasticHttpMethod.POST;
+        }
+
+        if (method == NetHttpMethod.Put)
+        {
+            return ElasticHttpMethod.PUT;
+        }
+
+        if (method == NetHttpMethod.Delete)
+        {
+            return ElasticHttpMethod.DELETE;
+        }
+
+        throw new NotSupportedException($"HTTP method {method} is not supported.");
+    }
+
+    private static void EnsureValid(StringResponse response, NetHttpMethod method, string path)
+    {
+        if (response.ApiCallDetails?.HasSuccessfulStatusCode != true)
+        {
+            throw CreateException(method, path, response);
+        }
+    }
+
+    private static InvalidOperationException CreateException(NetHttpMethod method, string path, StringResponse response)
+    {
+        var statusCode = response.ApiCallDetails?.HttpStatusCode;
+        var serverError = response.Body ?? response.ApiCallDetails?.DebugInformation;
+        return new InvalidOperationException($"Elasticsearch {method} {path} failed with {statusCode}: {serverError}");
     }
 }

@@ -1,6 +1,7 @@
 # Student Search POC
 
 React + Vite frontend, .NET 10 C# backend API, and Elasticsearch in Docker.
+The backend uses the official `Elastic.Clients.Elasticsearch` .NET SDK.
 
 ## Structure
 
@@ -73,11 +74,11 @@ Year 8
 Station Road
 ```
 
-## API
-
 ## Backend Structure Rule
 
-`Program.cs` should stay composition-only: service registration, middleware, and endpoint extension calls. API endpoints, Elasticsearch access, search logic, reindexing, and models should live in focused files under `src/backend`.
+`Program.cs` should stay composition-only: service registration, middleware, controller mapping, and app startup. API endpoints, Elasticsearch access, search logic, reindexing, and models should live in focused files under `src/backend`.
+
+## API
 
 ### `POST /api/search`
 

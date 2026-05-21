@@ -37,27 +37,15 @@ public sealed class ReindexService : IReindexService
             bulkPayload.AppendLine(JsonSerializer.Serialize(document, JsonOptions()));
         }
 
-        using var client = new HttpClient { BaseAddress = new Uri(_configuration.ElasticsearchUrl) };
-        using var content = new StringContent(bulkPayload.ToString(), Encoding.UTF8, "application/x-ndjson");
-        using var response = await client.PostAsync($"/{_configuration.IndexName}/_bulk?refresh=true", content);
-        var responseText = await response.Content.ReadAsStringAsync();
-        if (!response.IsSuccessStatusCode)
-        {
-            throw new InvalidOperationException($"Bulk indexing failed with {(int)response.StatusCode}: {responseText}");
-        }
+        await _gateway.SendRawAsync(HttpMethod.Post, $"/{_configuration.IndexName}/_bulk", bulkPayload.ToString());
+        await _gateway.SendAsync(HttpMethod.Post, $"/{_configuration.IndexName}/_refresh");
 
         return new ReindexResponse(_configuration.IndexName, documents.Count, "ok");
     }
 
-    private async Task DeleteIndexIfExistsAsync()
+    private Task DeleteIndexIfExistsAsync()
     {
-        using var client = new HttpClient { BaseAddress = new Uri(_configuration.ElasticsearchUrl) };
-        using var response = await client.DeleteAsync($"/{_configuration.IndexName}");
-        if (!response.IsSuccessStatusCode && response.StatusCode != System.Net.HttpStatusCode.NotFound)
-        {
-            var text = await response.Content.ReadAsStringAsync();
-            throw new InvalidOperationException($"Deleting index failed with {(int)response.StatusCode}: {text}");
-        }
+        return _gateway.DeleteIfExistsAsync($"/{_configuration.IndexName}");
     }
 
     private Task CreateIndexAsync()
