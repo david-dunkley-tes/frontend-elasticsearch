@@ -287,45 +287,68 @@ public sealed class StudentSearchService
 
     private static JsonObject BuildFreeTextQuery(string query)
     {
+        var shouldClauses = new JsonArray
+        {
+            new JsonObject
+            {
+                ["term"] = new JsonObject
+                {
+                    ["student.id"] = new JsonObject { ["value"] = query.ToLowerInvariant(), ["boost"] = 20 }
+                }
+            },
+            new JsonObject
+            {
+                ["multi_match"] = new JsonObject
+                {
+                    ["query"] = query,
+                    ["type"] = "phrase",
+                    ["fields"] = new JsonArray("student.fullName^8", "student.surname^10", "school.name^5", "trust.name^5"),
+                    ["boost"] = 4
+                }
+            }
+        };
+
+        if (ShouldUsePrefixSearch(query))
+        {
+            shouldClauses.Add(new JsonObject
+            {
+                ["multi_match"] = new JsonObject
+                {
+                    ["query"] = query,
+                    ["type"] = "bool_prefix",
+                    ["fields"] = new JsonArray("student.fullName^4", "student.foreName^3", "student.surname^5", "school.name^3", "trust.name^3", "school.address^1"),
+                    ["boost"] = 1.5
+                }
+            });
+        }
+
+        shouldClauses.Add(new JsonObject
+        {
+            ["multi_match"] = new JsonObject
+            {
+                ["query"] = query,
+                ["type"] = "best_fields",
+                ["fields"] = new JsonArray("student.id^12", "student.fullName^6", "student.foreName^4", "student.surname^8", "student.yearGroup^2", "school.name^4", "trust.name^4", "school.address^1"),
+                ["fuzziness"] = "AUTO",
+                ["prefix_length"] = 1,
+                ["boost"] = 2
+            }
+        });
+
         return new JsonObject
         {
             ["bool"] = new JsonObject
             {
-                ["should"] = new JsonArray
-                {
-                    new JsonObject
-                    {
-                        ["term"] = new JsonObject
-                        {
-                            ["student.id"] = new JsonObject { ["value"] = query.ToLowerInvariant(), ["boost"] = 20 }
-                        }
-                    },
-                    new JsonObject
-                    {
-                        ["multi_match"] = new JsonObject
-                        {
-                            ["query"] = query,
-                            ["type"] = "phrase",
-                            ["fields"] = new JsonArray("student.fullName^8", "student.surname^10", "school.name^5", "trust.name^5"),
-                            ["boost"] = 4
-                        }
-                    },
-                    new JsonObject
-                    {
-                        ["multi_match"] = new JsonObject
-                        {
-                            ["query"] = query,
-                            ["type"] = "best_fields",
-                            ["fields"] = new JsonArray("student.id^12", "student.fullName^6", "student.foreName^4", "student.surname^8", "student.yearGroup^2", "school.name^4", "trust.name^4", "school.address^1"),
-                            ["fuzziness"] = "AUTO",
-                            ["prefix_length"] = 1,
-                            ["boost"] = 2
-                        }
-                    }
-                },
+                ["should"] = shouldClauses,
                 ["minimum_should_match"] = 1
             }
         };
+    }
+
+    private static bool ShouldUsePrefixSearch(string query)
+    {
+        var tokens = query.Split(' ', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        return tokens.Length == 1;
     }
 
     private static JsonArray BuildFilterClauses(IReadOnlyDictionary<string, List<string>> filters, string? excludeFacetId)
