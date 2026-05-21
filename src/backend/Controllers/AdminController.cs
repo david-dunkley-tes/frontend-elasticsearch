@@ -5,26 +5,17 @@ namespace StudentSearch.Api.Controllers;
 
 [ApiController]
 [Route("api/admin")]
-public sealed class AdminController : ControllerBase
+public sealed class AdminController(IReindexService reindexService, IWebHostEnvironment environment) : ControllerBase
 {
-    private readonly IWebHostEnvironment _environment;
-    private readonly IReindexService _reindexService;
-
-    public AdminController(IReindexService reindexService, IWebHostEnvironment environment)
-    {
-        _reindexService = reindexService;
-        _environment = environment;
-    }
-
     [HttpPost("reindex")]
     public async Task<IActionResult> Reindex()
     {
-        if (!_environment.IsDevelopment())
+        if (!environment.IsDevelopment())
         {
             return NotFound();
         }
 
-        var response = await _reindexService.ReindexAsync();
+        var response = await reindexService.ReindexAsync();
         return Ok(response);
     }
 }

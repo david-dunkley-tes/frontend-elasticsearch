@@ -6,7 +6,6 @@ using StudentSearch.Api.Services;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddControllers();
-
 builder.Services.AddCors(options =>
 {
     options.AddPolicy("ViteDev", policy =>
@@ -22,6 +21,7 @@ builder.Services.AddSingleton(sp =>
     return new ElasticsearchClient(new Uri(configuration.ElasticsearchUrl));
 });
 builder.Services.AddScoped<IStudentSearchService, StudentSearchService>();
+builder.Services.AddScoped<IAuthorizationScopeResolver, AuthorizationScopeResolver>();
 builder.Services.AddScoped<IReindexService, ReindexService>();
 builder.Services.AddSingleton<ISavedSearchService, SavedSearchService>();
 builder.Services.AddScoped<IStudentSearchIndex, ElasticsearchStudentSearchIndex>();
@@ -31,6 +31,7 @@ builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 var app = builder.Build();
 
 app.UseCors("ViteDev");
+app.UseMiddleware<DevBearerAuthenticationMiddleware>();
 
 app.MapControllers();
 

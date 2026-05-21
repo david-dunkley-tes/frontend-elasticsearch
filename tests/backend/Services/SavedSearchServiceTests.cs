@@ -90,16 +90,11 @@ public sealed class SavedSearchServiceTests : IDisposable
         return new SavedSearchService(new SearchConfiguration(configuration, new StubWebHostEnvironment(_tempRoot)));
     }
 
-    private sealed class StubWebHostEnvironment : IWebHostEnvironment
+    private sealed class StubWebHostEnvironment(string contentRootPath) : IWebHostEnvironment
     {
-        public StubWebHostEnvironment(string contentRootPath)
-        {
-            ContentRootPath = Path.Combine(contentRootPath, "src", "backend");
-        }
-
         public string ApplicationName { get; set; } = "StudentSearch.Api.Tests";
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
-        public string ContentRootPath { get; set; }
+        public string ContentRootPath { get; set; } = Path.Combine(contentRootPath, "src", "backend");
         public string EnvironmentName { get; set; } = "Development";
         public string WebRootPath { get; set; } = string.Empty;
         public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();

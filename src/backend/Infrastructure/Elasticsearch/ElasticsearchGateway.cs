@@ -7,15 +7,9 @@ using NetHttpMethod = System.Net.Http.HttpMethod;
 
 namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
-public sealed class ElasticsearchGateway : IElasticsearchGateway
+public sealed class ElasticsearchGateway(ElasticsearchClient client) : IElasticsearchGateway
 {
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
-    private readonly ElasticsearchClient _client;
-
-    public ElasticsearchGateway(ElasticsearchClient client)
-    {
-        _client = client;
-    }
 
     public async Task<JsonNode?> SendAsync(NetHttpMethod method, string path, JsonNode? body = null)
     {
@@ -28,7 +22,7 @@ public sealed class ElasticsearchGateway : IElasticsearchGateway
 
     public async Task<string> SendRawAsync(NetHttpMethod method, string path, string body)
     {
-        var response = await _client.Transport.RequestAsync<StringResponse>(
+        var response = await client.Transport.RequestAsync<StringResponse>(
             ToElasticMethod(method),
             path,
             PostData.String(body));
@@ -39,7 +33,7 @@ public sealed class ElasticsearchGateway : IElasticsearchGateway
 
     public async Task<bool> DeleteIfExistsAsync(string path)
     {
-        var response = await _client.Transport.RequestAsync<StringResponse>(
+        var response = await client.Transport.RequestAsync<StringResponse>(
             ElasticHttpMethod.DELETE,
             path);
 
@@ -59,7 +53,7 @@ public sealed class ElasticsearchGateway : IElasticsearchGateway
 
     private async Task<string> SendWithoutBodyAsync(NetHttpMethod method, string path)
     {
-        var response = await _client.Transport.RequestAsync<StringResponse>(ToElasticMethod(method), path);
+        var response = await client.Transport.RequestAsync<StringResponse>(ToElasticMethod(method), path);
         EnsureValid(response, method, path);
         return response.Body ?? string.Empty;
     }

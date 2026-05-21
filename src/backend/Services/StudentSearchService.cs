@@ -2,19 +2,12 @@ using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Services;
 
-public sealed class StudentSearchService : IStudentSearchService
+public sealed class StudentSearchService(IStudentSearchIndex studentSearchIndex) : IStudentSearchService
 {
-    private readonly IStudentSearchIndex _studentSearchIndex;
-
-    public StudentSearchService(IStudentSearchIndex studentSearchIndex)
-    {
-        _studentSearchIndex = studentSearchIndex;
-    }
-
-    public Task<SearchResponse> SearchAsync(SearchRequest request)
+    public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
         var normalized = NormalizeRequest(request);
-        return _studentSearchIndex.SearchAsync(normalized);
+        return studentSearchIndex.SearchAsync(normalized, authorizationScope);
     }
 
     private static SearchRequest NormalizeRequest(SearchRequest request)

@@ -6,19 +6,15 @@ namespace StudentSearch.Api.Controllers;
 
 [ApiController]
 [Route("api/search")]
-public sealed class SearchController : ControllerBase
+public sealed class SearchController(
+    IStudentSearchService searchService,
+    IAuthorizationScopeResolver authorizationScopeResolver) : ControllerBase
 {
-    private readonly IStudentSearchService _searchService;
-
-    public SearchController(IStudentSearchService searchService)
-    {
-        _searchService = searchService;
-    }
-
     [HttpPost]
     public async Task<ActionResult<SearchResponse>> Search(SearchRequest request)
     {
-        var response = await _searchService.SearchAsync(request);
+        var authorizationScope = await authorizationScopeResolver.ResolveAsync(User);
+        var response = await searchService.SearchAsync(request, authorizationScope);
         return Ok(response);
     }
 }

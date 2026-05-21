@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Security.Claims;
 using StudentSearch.Api.Controllers;
 using StudentSearch.Api.Models;
 using StudentSearch.Api.Services;
@@ -12,30 +13,34 @@ public sealed class SearchControllerTests
     {
         var expected = new SearchResponse(12, 3, 4, [], new Dictionary<string, FacetResponse>(), null);
         var service = new StubStudentSearchService(expected);
-        var controller = new SearchController(service);
+        var controller = new SearchController(service, new StubAuthorizationScopeResolver(AuthorizedSchoolScope.Global));
 
         var result = await controller.Search(new SearchRequest(Query: "West"));
 
         var ok = Assert.IsType<OkObjectResult>(result.Result);
         Assert.Same(expected, ok.Value);
         Assert.Equal("West", service.CapturedRequest.Query);
+        Assert.Same(AuthorizedSchoolScope.Global, service.CapturedAuthorizationScope);
     }
 
-    private sealed class StubStudentSearchService : IStudentSearchService
+    private sealed class StubStudentSearchService(SearchResponse response) : IStudentSearchService
     {
-        private readonly SearchResponse _response;
-
-        public StubStudentSearchService(SearchResponse response)
-        {
-            _response = response;
-        }
-
         public SearchRequest CapturedRequest { get; private set; } = null!;
+        public AuthorizedSchoolScope CapturedAuthorizationScope { get; private set; } = null!;
 
-        public Task<SearchResponse> SearchAsync(SearchRequest request)
+        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
         {
             CapturedRequest = request;
-            return Task.FromResult(_response);
+            CapturedAuthorizationScope = authorizationScope;
+            return Task.FromResult(response);
+        }
+    }
+
+    private sealed class StubAuthorizationScopeResolver(AuthorizedSchoolScope authorizationScope) : IAuthorizationScopeResolver
+    {
+        public Task<AuthorizedSchoolScope> ResolveAsync(ClaimsPrincipal user)
+        {
+            return Task.FromResult(authorizationScope);
         }
     }
 }

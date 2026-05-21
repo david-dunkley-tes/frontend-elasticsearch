@@ -7,11 +7,11 @@ using StudentSearch.Api.Services;
 
 namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
-public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
+public sealed class ElasticsearchStudentSearchIndex(
+    IElasticsearchGateway gateway,
+    SearchConfiguration configuration) : IStudentSearchIndex
 {
     private const string NoTrustValue = "__NO_TRUST__";
-    private readonly SearchConfiguration _configuration;
-    private readonly IElasticsearchGateway _gateway;
 
     private static readonly FacetDefinition[] Facets =
     [
@@ -20,23 +20,17 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         new("trust", "Trust", "trust.name.keyword", SupportsMissing: true)
     ];
 
-    public ElasticsearchStudentSearchIndex(IElasticsearchGateway gateway, SearchConfiguration configuration)
-    {
-        _gateway = gateway;
-        _configuration = configuration;
-    }
-
-    public async Task<SearchResponse> SearchAsync(SearchRequest request)
+    public async Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
         var stopwatch = Stopwatch.StartNew();
-        var query = BuildSearchPayload(request);
-        var response = await _gateway.SendAsync(HttpMethod.Post, $"/{_configuration.IndexName}/_search", query);
+        var query = BuildSearchPayload(request, authorizationScope);
+        var response = await gateway.SendAsync(HttpMethod.Post, $"/{configuration.IndexName}/_search", query);
         stopwatch.Stop();
 
         return MapResponse(request, query, response!, stopwatch.ElapsedMilliseconds);
     }
 
-    private static JsonObject BuildSearchPayload(SearchRequest request)
+    private static JsonObject BuildSearchPayload(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
         var from = (request.Page - 1) * request.PageSize;
         var payload = new JsonObject
@@ -44,9 +38,9 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
             ["from"] = from,
             ["size"] = request.PageSize,
             ["track_total_hits"] = true,
-            ["query"] = BuildMainQuery(request),
+            ["query"] = BuildMainQuery(request, authorizationScope),
             ["highlight"] = BuildHighlight(),
-            ["aggs"] = BuildFacetAggregations(request)
+            ["aggs"] = BuildFacetAggregations(request, authorizationScope)
         };
 
         payload["sort"] = string.IsNullOrWhiteSpace(request.Query)
@@ -58,9 +52,9 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         return payload;
     }
 
-    private static JsonObject BuildMainQuery(SearchRequest request)
+    private static JsonObject BuildMainQuery(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
-        var filters = BuildFilterClauses(request.Filters, null);
+        var filters = BuildFilterClauses(request.Filters, null, authorizationScope);
         if (string.IsNullOrWhiteSpace(request.Query))
         {
             return new JsonObject
@@ -149,9 +143,11 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         return tokens.Length == 1;
     }
 
-    private static JsonArray BuildFilterClauses(IReadOnlyDictionary<string, List<string>> filters, string? excludeFacetId)
+    private static JsonArray BuildFilterClauses(IReadOnlyDictionary<string, List<string>> filters, string? excludeFacetId, AuthorizedSchoolScope authorizationScope)
     {
         var clauses = new JsonArray();
+        AddAuthorizationFilter(clauses, authorizationScope);
+
         foreach (var facet in Facets)
         {
             if (facet.Id.Equals(excludeFacetId, StringComparison.OrdinalIgnoreCase))
@@ -168,6 +164,31 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         }
 
         return clauses;
+    }
+
+    private static void AddAuthorizationFilter(JsonArray clauses, AuthorizedSchoolScope authorizationScope)
+    {
+        if (authorizationScope.IsGlobal)
+        {
+            return;
+        }
+
+        if (authorizationScope.SchoolIds.Count == 0)
+        {
+            clauses.Add(new JsonObject
+            {
+                ["bool"] = new JsonObject
+                {
+                    ["must_not"] = new JsonArray(new JsonObject { ["match_all"] = new JsonObject() })
+                }
+            });
+            return;
+        }
+
+        clauses.Add(new JsonObject
+        {
+            ["terms"] = new JsonObject { ["school.id"] = ToJsonArray(authorizationScope.SchoolIds.Select(id => id.ToLowerInvariant())) }
+        });
     }
 
     private static JsonObject BuildFacetFilter(FacetDefinition facet, IReadOnlyCollection<string> values)
@@ -203,7 +224,7 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         };
     }
 
-    private static JsonObject BuildFacetAggregations(SearchRequest request)
+    private static JsonObject BuildFacetAggregations(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
         var aggs = new JsonObject();
         foreach (var facet in Facets)
@@ -231,7 +252,7 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
 
             aggs[facet.Id] = new JsonObject
             {
-                ["filter"] = BuildAggregationFilter(request, facet.Id),
+                ["filter"] = BuildAggregationFilter(request, facet.Id, authorizationScope),
                 ["aggs"] = facetAggs
             };
         }
@@ -250,9 +271,9 @@ public sealed class ElasticsearchStudentSearchIndex : IStudentSearchIndex
         return array;
     }
 
-    private static JsonObject BuildAggregationFilter(SearchRequest request, string facetId)
+    private static JsonObject BuildAggregationFilter(SearchRequest request, string facetId, AuthorizedSchoolScope authorizationScope)
     {
-        var filters = BuildFilterClauses(request.Filters, facetId);
+        var filters = BuildFilterClauses(request.Filters, facetId, authorizationScope);
         if (string.IsNullOrWhiteSpace(request.Query))
         {
             return new JsonObject

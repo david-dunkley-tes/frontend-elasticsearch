@@ -13,7 +13,7 @@ public sealed class ElasticsearchStudentSearchIndexTests
         var gateway = new CapturingElasticsearchGateway();
         var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
 
-        await index.SearchAsync(new SearchRequest(Query: "West", Page: 1, PageSize: 10));
+        await index.SearchAsync(new SearchRequest(Query: "West", Page: 1, PageSize: 10), AuthorizedSchoolScope.Global);
 
         Assert.NotNull(gateway.CapturedBody);
         Assert.Contains("\"bool_prefix\"", gateway.CapturedBody.ToJsonString());
@@ -25,7 +25,7 @@ public sealed class ElasticsearchStudentSearchIndexTests
         var gateway = new CapturingElasticsearchGateway();
         var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
 
-        await index.SearchAsync(new SearchRequest(Query: "West b", Page: 1, PageSize: 10));
+        await index.SearchAsync(new SearchRequest(Query: "West b", Page: 1, PageSize: 10), AuthorizedSchoolScope.Global);
 
         Assert.NotNull(gateway.CapturedBody);
         Assert.DoesNotContain("\"bool_prefix\"", gateway.CapturedBody.ToJsonString());
@@ -44,7 +44,7 @@ public sealed class ElasticsearchStudentSearchIndexTests
                 ["yearGroup"] = ["year 9"]
             });
 
-        await index.SearchAsync(request);
+        await index.SearchAsync(request, AuthorizedSchoolScope.Global);
 
         var body = gateway.CapturedBody!;
         var schoolFilter = body["aggs"]!["school"]!["filter"]!.ToJsonString();
@@ -54,6 +54,36 @@ public sealed class ElasticsearchStudentSearchIndexTests
         Assert.Contains("student.yearGroup", schoolFilter);
         Assert.Contains("school.name.keyword", yearGroupFilter);
         Assert.DoesNotContain("\"student.yearGroup\"", yearGroupFilter);
+    }
+
+    [Fact]
+    public async Task SearchAsync_AppliesAuthorizationScopeToHitsAndFacetAggregations()
+    {
+        var gateway = new CapturingElasticsearchGateway();
+        var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
+        var authorizationScope = new AuthorizedSchoolScope(false, ["SCH-WESTBROOK"]);
+
+        await index.SearchAsync(new SearchRequest(Query: "West"), authorizationScope);
+
+        var body = gateway.CapturedBody!;
+        var bodyJson = body.ToJsonString();
+        var schoolFilter = body["aggs"]!["school"]!["filter"]!.ToJsonString();
+
+        Assert.Contains("school.id", bodyJson);
+        Assert.Contains("sch-westbrook", bodyJson);
+        Assert.Contains("school.id", schoolFilter);
+    }
+
+    [Fact]
+    public async Task SearchAsync_DeniesAllDocumentsWhenAuthorizationScopeIsEmpty()
+    {
+        var gateway = new CapturingElasticsearchGateway();
+        var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
+        var authorizationScope = new AuthorizedSchoolScope(false, []);
+
+        await index.SearchAsync(new SearchRequest(), authorizationScope);
+
+        Assert.Contains("\"must_not\"", gateway.CapturedBody!.ToJsonString());
     }
 
     private static SearchConfiguration CreateConfiguration()

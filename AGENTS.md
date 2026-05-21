@@ -1,5 +1,9 @@
 # Agent Instructions
 
+## C# Style
+
+Prefer primary constructors for C# classes that need constructor-injected dependencies or simple test stub initialization.
+
 ## Slash Commands
 
 ### `/feature-done`

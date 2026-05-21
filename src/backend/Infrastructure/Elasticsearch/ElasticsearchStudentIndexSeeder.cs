@@ -7,28 +7,21 @@ using StudentSearch.Api.Services;
 
 namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
-public sealed class ElasticsearchStudentIndexSeeder : IStudentIndexSeeder
+public sealed class ElasticsearchStudentIndexSeeder(
+    IElasticsearchGateway gateway,
+    SearchConfiguration configuration) : IStudentIndexSeeder
 {
-    private readonly SearchConfiguration _configuration;
-    private readonly IElasticsearchGateway _gateway;
-
-    public ElasticsearchStudentIndexSeeder(IElasticsearchGateway gateway, SearchConfiguration configuration)
-    {
-        _gateway = gateway;
-        _configuration = configuration;
-    }
-
     public async Task<ReindexResponse> ReindexAsync()
     {
-        if (!File.Exists(_configuration.SeedDataPath))
+        if (!File.Exists(configuration.SeedDataPath))
         {
-            throw new FileNotFoundException("Seed data file was not found.", _configuration.SeedDataPath);
+            throw new FileNotFoundException("Seed data file was not found.", configuration.SeedDataPath);
         }
 
-        await _gateway.DeleteIfExistsAsync($"/{_configuration.IndexName}");
+        await gateway.DeleteIfExistsAsync($"/{configuration.IndexName}");
         await CreateIndexAsync();
 
-        var seedText = await File.ReadAllTextAsync(_configuration.SeedDataPath);
+        var seedText = await File.ReadAllTextAsync(configuration.SeedDataPath);
         var documents = JsonSerializer.Deserialize<List<StudentRecord>>(seedText, JsonOptions()) ?? [];
         var bulkPayload = new StringBuilder();
 
@@ -38,10 +31,10 @@ public sealed class ElasticsearchStudentIndexSeeder : IStudentIndexSeeder
             bulkPayload.AppendLine(JsonSerializer.Serialize(document, JsonOptions()));
         }
 
-        await _gateway.SendRawAsync(HttpMethod.Post, $"/{_configuration.IndexName}/_bulk", bulkPayload.ToString());
-        await _gateway.SendAsync(HttpMethod.Post, $"/{_configuration.IndexName}/_refresh");
+        await gateway.SendRawAsync(HttpMethod.Post, $"/{configuration.IndexName}/_bulk", bulkPayload.ToString());
+        await gateway.SendAsync(HttpMethod.Post, $"/{configuration.IndexName}/_refresh");
 
-        return new ReindexResponse(_configuration.IndexName, documents.Count, "ok");
+        return new ReindexResponse(configuration.IndexName, documents.Count, "ok");
     }
 
     private Task CreateIndexAsync()
@@ -71,12 +64,14 @@ public sealed class ElasticsearchStudentIndexSeeder : IStudentIndexSeeder
               },
               "school": {
                 "properties": {
+                  "id": { "type": "keyword", "normalizer": "lowercase_keyword" },
                   "name": { "type": "text", "fields": { "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" } } },
                   "address": { "type": "text" }
                 }
               },
               "trust": {
                 "properties": {
+                  "id": { "type": "keyword", "normalizer": "lowercase_keyword" },
                   "name": { "type": "text", "fields": { "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" } } }
                 }
               }
@@ -85,7 +80,7 @@ public sealed class ElasticsearchStudentIndexSeeder : IStudentIndexSeeder
         }
         """)!;
 
-        return _gateway.SendAsync(HttpMethod.Put, $"/{_configuration.IndexName}", mapping);
+        return gateway.SendAsync(HttpMethod.Put, $"/{configuration.IndexName}", mapping);
     }
 
     private static JsonSerializerOptions JsonOptions() => new(JsonSerializerDefaults.Web);

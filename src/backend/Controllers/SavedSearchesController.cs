@@ -6,19 +6,12 @@ namespace StudentSearch.Api.Controllers;
 
 [ApiController]
 [Route("api/saved-searches")]
-public sealed class SavedSearchesController : ControllerBase
+public sealed class SavedSearchesController(ISavedSearchService savedSearchService) : ControllerBase
 {
-    private readonly ISavedSearchService _savedSearchService;
-
-    public SavedSearchesController(ISavedSearchService savedSearchService)
-    {
-        _savedSearchService = savedSearchService;
-    }
-
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SavedSearch>>> List()
     {
-        return Ok(await _savedSearchService.ListAsync());
+        return Ok(await savedSearchService.ListAsync());
     }
 
     [HttpPost]
@@ -26,7 +19,7 @@ public sealed class SavedSearchesController : ControllerBase
     {
         try
         {
-            var savedSearch = await _savedSearchService.SaveAsync(request);
+            var savedSearch = await savedSearchService.SaveAsync(request);
             return CreatedAtAction(nameof(List), new { id = savedSearch.Id }, savedSearch);
         }
         catch (ArgumentException ex)
@@ -38,6 +31,6 @@ public sealed class SavedSearchesController : ControllerBase
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        return await _savedSearchService.DeleteAsync(id) ? NoContent() : NotFound();
+        return await savedSearchService.DeleteAsync(id) ? NoContent() : NotFound();
     }
 }

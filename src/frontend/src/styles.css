@@ -44,7 +44,18 @@ input {
 
 .topbar-actions {
   display: flex;
+  align-items: center;
   gap: 10px;
+}
+
+.user-pill {
+  border: 1px solid #c7d0dc;
+  border-radius: 999px;
+  background: #eef6f8;
+  color: #245f69;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 12px;
 }
 
 .icon-button,

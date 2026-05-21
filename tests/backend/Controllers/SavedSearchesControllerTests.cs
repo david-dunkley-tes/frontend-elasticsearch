@@ -73,43 +73,30 @@ public sealed class SavedSearchesControllerTests
         return new SavedSearch("saved-1", "Westbrook", "West", [], "relevance", 10, DateTimeOffset.UtcNow);
     }
 
-    private sealed class StubSavedSearchService : ISavedSearchService
+    private sealed class StubSavedSearchService(
+        IReadOnlyList<SavedSearch> savedSearches,
+        SavedSearch? SaveResult = null,
+        ArgumentException? SaveException = null,
+        bool DeleteResult = false) : ISavedSearchService
     {
-        private readonly IReadOnlyList<SavedSearch> _savedSearches;
-        private readonly SavedSearch? _saveResult;
-        private readonly ArgumentException? _saveException;
-        private readonly bool _deleteResult;
-
-        public StubSavedSearchService(
-            IReadOnlyList<SavedSearch> savedSearches,
-            SavedSearch? SaveResult = null,
-            ArgumentException? SaveException = null,
-            bool DeleteResult = false)
-        {
-            _savedSearches = savedSearches;
-            _saveResult = SaveResult;
-            _saveException = SaveException;
-            _deleteResult = DeleteResult;
-        }
-
         public Task<IReadOnlyList<SavedSearch>> ListAsync()
         {
-            return Task.FromResult(_savedSearches);
+            return Task.FromResult(savedSearches);
         }
 
         public Task<SavedSearch> SaveAsync(SaveSearchRequest request)
         {
-            if (_saveException is not null)
+            if (SaveException is not null)
             {
-                throw _saveException;
+                throw SaveException;
             }
 
-            return Task.FromResult(_saveResult!);
+            return Task.FromResult(SaveResult!);
         }
 
         public Task<bool> DeleteAsync(string id)
         {
-            return Task.FromResult(_deleteResult);
+            return Task.FromResult(DeleteResult);
         }
     }
 }

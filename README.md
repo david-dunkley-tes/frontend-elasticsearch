@@ -54,7 +54,8 @@ dotnet run --project src/backend
 Seed the index:
 
 ```bash
-curl -X POST http://localhost:5000/api/admin/reindex
+curl -X POST http://localhost:5000/api/admin/reindex \
+  -H "Authorization: Bearer <dev-token>"
 ```
 
 Start the frontend:
@@ -89,6 +90,24 @@ Search state is encoded in the frontend URL. `q` stores the free-text query, `pa
 ```text
 http://127.0.0.1:5173/?q=westbrook&school=westbrook+college&yearGroup=year+9
 ```
+
+## Development Authorization
+
+Local development uses an unsigned dev bearer token with a base64url-encoded JSON payload:
+
+```json
+{
+  "sub": "dev-global-admin",
+  "name": "Global Admin",
+  "scopes": [{ "type": "global" }]
+}
+```
+
+The frontend sends this as `Authorization: Bearer <token>`. The backend middleware decodes it into a `ClaimsPrincipal`, and search authorization resolves the token scopes into an allowed school set. Users only see, filter, facet, and drill into the data allowed by their scopes; unauthorized data is not returned in results or facet counts.
+
+Supported development scope types are `global`, `trust`, `school`, and `schoolGroup`. Scopes are additive, so a token can combine a trust with schools outside that trust. The current frontend dev token is scoped to `Kingfisher Academy` using `SCH-KINGFISHER`.
+
+All `/api` endpoints require the bearer token except `/api/health`.
 
 ## Useful Test Searches
 
@@ -136,6 +155,10 @@ The service layer must stay decoupled from Elasticsearch. Application services d
 ### `POST /api/admin/reindex`
 
 Development-only endpoint. Deletes and recreates the configured Elasticsearch index, then bulk indexes `data/students.seed.json`.
+
+### `GET /api/auth/me`
+
+Returns the current dev token subject, display name, and scopes.
 
 ### `GET /api/saved-searches`
 

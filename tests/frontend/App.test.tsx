@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/frontend/src/App';
-import type { SavedSearch, SearchResponse } from '../../src/frontend/src/types';
+import type { CurrentUser, SavedSearch, SearchResponse } from '../../src/frontend/src/types';
 
 const baseResponse: SearchResponse = {
   total: 2,
@@ -21,10 +21,12 @@ const baseResponse: SearchResponse = {
         yearGroup: 'Year 9',
       },
       school: {
+        id: 'SCH-WESTBROOK',
         name: 'Westbrook College',
         address: '1 College Road',
       },
       trust: {
+        id: 'TRUST-NORTH-LEARNING',
         name: 'North Learning Trust',
       },
       highlights: {
@@ -44,6 +46,7 @@ const baseResponse: SearchResponse = {
         yearGroup: 'Year 10',
       },
       school: {
+        id: 'SCH-EASTFIELD',
         name: 'Eastfield School',
         address: '22 East Street',
       },
@@ -86,6 +89,12 @@ const savedSearches: SavedSearch[] = [
   },
 ];
 
+const currentUser: CurrentUser = {
+  sub: 'dev-global-admin',
+  name: 'Global Admin',
+  scopes: [{ type: 'global' }],
+};
+
 function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], initialSavedSearches: SavedSearch[] = []) {
   const searchQueue = [...searchResponses];
   let savedSearchQueue = [...initialSavedSearches];
@@ -96,6 +105,10 @@ function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], in
 
     if (url.endsWith('/api/search')) {
       return jsonResponse(searchQueue.shift() ?? searchResponses.at(-1) ?? baseResponse);
+    }
+
+    if (url.endsWith('/api/auth/me')) {
+      return jsonResponse(currentUser);
     }
 
     if (url.endsWith('/api/saved-searches') && method === 'GET') {
@@ -164,6 +177,7 @@ describe('App', () => {
     await waitForInitialSearch();
 
     expect(screen.getByText('2 students found')).toBeInTheDocument();
+    expect(screen.getByText('Global Admin')).toHaveAttribute('title', 'Global access');
     expect(screen.getAllByText('Westbrook College').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Ava Harrington' })).toBeInTheDocument();
     expect(screen.getAllByText('North Learning Trust').length).toBeGreaterThan(0);

@@ -20,7 +20,7 @@ public sealed class StudentSearchServiceTests
             Page: -5,
             PageSize: 0);
 
-        await service.SearchAsync(request);
+        await service.SearchAsync(request, AuthorizedSchoolScope.Global);
 
         Assert.NotNull(index.CapturedRequest);
         Assert.Equal("West", index.CapturedRequest.Query);
@@ -36,7 +36,7 @@ public sealed class StudentSearchServiceTests
         var index = new CapturingStudentSearchIndex();
         var service = new StudentSearchService(index);
 
-        await service.SearchAsync(new SearchRequest(Page: 2, PageSize: 500));
+        await service.SearchAsync(new SearchRequest(Page: 2, PageSize: 500), AuthorizedSchoolScope.Global);
 
         Assert.NotNull(index.CapturedRequest);
         Assert.Equal(2, index.CapturedRequest.Page);
@@ -46,11 +46,14 @@ public sealed class StudentSearchServiceTests
     private sealed class CapturingStudentSearchIndex : IStudentSearchIndex
     {
         public SearchRequest CapturedRequest { get; private set; } = null!;
+        public AuthorizedSchoolScope CapturedAuthorizationScope { get; private set; } = null!;
 
-        public Task<SearchResponse> SearchAsync(SearchRequest request)
+        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
         {
             CapturedRequest = request;
+            CapturedAuthorizationScope = authorizationScope;
             return Task.FromResult(new SearchResponse(0, 0, 0, [], new Dictionary<string, FacetResponse>(), null));
         }
     }
+
 }

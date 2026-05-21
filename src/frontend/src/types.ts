@@ -7,11 +7,13 @@ export type Student = {
 };
 
 export type School = {
+  id: string;
   name: string;
   address: string;
 };
 
 export type Trust = {
+  id: string;
   name: string;
 } | null;
 
@@ -74,4 +76,18 @@ export type SaveSearchRequest = {
   filters: Filters;
   sort: string;
   pageSize: number;
+};
+
+export type AuthorizationScope = {
+  type: string;
+  schoolId?: string;
+  trustId?: string;
+  schoolGroupId?: string;
+  schoolIds?: string[];
+};
+
+export type CurrentUser = {
+  sub: string;
+  name?: string;
+  scopes: AuthorizationScope[];
 };

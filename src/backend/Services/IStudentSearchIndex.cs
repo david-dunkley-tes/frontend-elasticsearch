@@ -4,5 +4,5 @@ namespace StudentSearch.Api.Services;
 
 public interface IStudentSearchIndex
 {
-    Task<SearchResponse> SearchAsync(SearchRequest request);
+    Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope);
 }

@@ -35,35 +35,23 @@ public sealed class AdminControllerTests
         Assert.False(reindexService.WasCalled);
     }
 
-    private sealed class StubReindexService : IReindexService
+    private sealed class StubReindexService(ReindexResponse response) : IReindexService
     {
-        private readonly ReindexResponse _response;
-
-        public StubReindexService(ReindexResponse response)
-        {
-            _response = response;
-        }
-
         public bool WasCalled { get; private set; }
 
         public Task<ReindexResponse> ReindexAsync()
         {
             WasCalled = true;
-            return Task.FromResult(_response);
+            return Task.FromResult(response);
         }
     }
 
-    private sealed class StubWebHostEnvironment : IWebHostEnvironment
+    private sealed class StubWebHostEnvironment(string environmentName) : IWebHostEnvironment
     {
-        public StubWebHostEnvironment(string environmentName)
-        {
-            EnvironmentName = environmentName;
-        }
-
         public string ApplicationName { get; set; } = "StudentSearch.Api.Tests";
         public IFileProvider ContentRootFileProvider { get; set; } = new NullFileProvider();
         public string ContentRootPath { get; set; } = string.Empty;
-        public string EnvironmentName { get; set; }
+        public string EnvironmentName { get; set; } = environmentName;
         public string WebRootPath { get; set; } = string.Empty;
         public IFileProvider WebRootFileProvider { get; set; } = new NullFileProvider();
     }

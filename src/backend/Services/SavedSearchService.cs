@@ -4,20 +4,14 @@ using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Services;
 
-public sealed class SavedSearchService : ISavedSearchService
+public sealed class SavedSearchService(SearchConfiguration configuration) : ISavedSearchService
 {
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web)
     {
         WriteIndented = true
     };
 
-    private readonly SearchConfiguration _configuration;
     private readonly SemaphoreSlim _fileLock = new(1, 1);
-
-    public SavedSearchService(SearchConfiguration configuration)
-    {
-        _configuration = configuration;
-    }
 
     public async Task<IReadOnlyList<SavedSearch>> ListAsync()
     {
@@ -86,24 +80,24 @@ public sealed class SavedSearchService : ISavedSearchService
 
     private async Task<List<SavedSearch>> ReadAllUnsafeAsync()
     {
-        if (!File.Exists(_configuration.SavedSearchesPath))
+        if (!File.Exists(configuration.SavedSearchesPath))
         {
             return [];
         }
 
-        await using var stream = File.OpenRead(_configuration.SavedSearchesPath);
+        await using var stream = File.OpenRead(configuration.SavedSearchesPath);
         return await JsonSerializer.DeserializeAsync<List<SavedSearch>>(stream, SerializerOptions) ?? [];
     }
 
     private async Task WriteAllUnsafeAsync(List<SavedSearch> savedSearches)
     {
-        var directory = Path.GetDirectoryName(_configuration.SavedSearchesPath);
+        var directory = Path.GetDirectoryName(configuration.SavedSearchesPath);
         if (!string.IsNullOrWhiteSpace(directory))
         {
             Directory.CreateDirectory(directory);
         }
 
-        await using var stream = File.Create(_configuration.SavedSearchesPath);
+        await using var stream = File.Create(configuration.SavedSearchesPath);
         await JsonSerializer.SerializeAsync(stream, savedSearches, SerializerOptions);
     }
 

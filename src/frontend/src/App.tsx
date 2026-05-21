@@ -1,5 +1,5 @@
 import React from 'react';
-import { deleteSavedSearch, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, getCurrentUser, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { DebugPanel } from './components/DebugPanel';
 import { FacetGroup } from './components/FacetGroup';
 import { ResultsPanel } from './components/ResultsPanel';
@@ -8,7 +8,7 @@ import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
-import type { Filters, SavedSearch, SearchResponse } from './types';
+import type { CurrentUser, Filters, SavedSearch, SearchResponse } from './types';
 
 const reservedSearchParams = new Set(['q', 'page']);
 
@@ -26,6 +26,7 @@ export function App() {
   const [debugMode, setDebugMode] = React.useState(true);
   const [response, setResponse] = React.useState<SearchResponse | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
+  const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null);
   const [savedSearches, setSavedSearches] = React.useState<SavedSearch[]>([]);
   const [saveName, setSaveName] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -77,6 +78,10 @@ export function App() {
   }, [requestPayload]);
 
   React.useEffect(() => {
+    getCurrentUser()
+      .then(setCurrentUser)
+      .catch((err: Error) => setError(err.message));
+
     listSavedSearches()
       .then(setSavedSearches)
       .catch((err: Error) => setError(err.message));
@@ -172,7 +177,13 @@ export function App() {
 
   return (
     <main className="app-shell">
-      <TopBar debugMode={debugMode} reindexing={reindexing} onDebugModeChange={setDebugMode} onReindex={reindex} />
+      <TopBar
+        debugMode={debugMode}
+        reindexing={reindexing}
+        currentUser={currentUser}
+        onDebugModeChange={setDebugMode}
+        onReindex={reindex}
+      />
       <SearchBox query={query} onChange={updateQuery} />
       <SelectedFilters filters={filters} response={response} onClear={clearFilter} />
 
