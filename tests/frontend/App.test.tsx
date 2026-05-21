@@ -147,10 +147,12 @@ function lastSearchRequest() {
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
+  window.history.replaceState(null, '', '/');
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  window.history.replaceState(null, '', '/');
 });
 
 describe('App', () => {
@@ -228,6 +230,46 @@ describe('App', () => {
       expect(lastSearchRequest().filters).toEqual({ school: ['westbrook college'] });
     });
     expect(screen.getByRole('button', { name: /school: westbrook college/i })).toBeInTheDocument();
+  });
+
+  it('initializes the active search from query string parameters', async () => {
+    window.history.replaceState(null, '', '/?q=West&page=2&school=westbrook+college&yearGroup=Year+9');
+    installFetchMock();
+
+    render(<App />);
+
+    await waitForInitialSearch();
+
+    expect(lastSearchRequest()).toMatchObject({
+      query: 'West',
+      filters: {
+        school: ['westbrook college'],
+        yearGroup: ['Year 9'],
+      },
+      page: 2,
+      sort: 'relevance',
+    });
+    expect(screen.getByPlaceholderText(/search anything/i)).toHaveValue('West');
+  });
+
+  it('updates the query string when search state changes', async () => {
+    const user = userEvent.setup();
+    installFetchMock([baseResponse, baseResponse, baseResponse]);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    await user.type(screen.getByPlaceholderText(/search anything/i), 'West');
+    await waitFor(() => expect(lastSearchRequest().query).toBe('West'));
+
+    const filtersPanel = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
+    const westbrookFilter = within(filtersPanel).getByText('Westbrook College').closest('label')!;
+    await user.click(westbrookFilter);
+
+    await waitFor(() => {
+      expect(new URLSearchParams(window.location.search).get('q')).toBe('West');
+      expect(new URLSearchParams(window.location.search).getAll('school')).toEqual(['westbrook college']);
+    });
   });
 
   it('shows request and response data when debug mode is enabled', async () => {

@@ -10,10 +10,19 @@ import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
 import type { Filters, SavedSearch, SearchResponse } from './types';
 
+const reservedSearchParams = new Set(['q', 'page']);
+
+type UrlSearchState = {
+  query: string;
+  filters: Filters;
+  page: number;
+};
+
 export function App() {
-  const [query, setQuery] = React.useState('');
-  const [filters, setFilters] = React.useState<Filters>({});
-  const [page, setPage] = React.useState(1);
+  const initialSearchState = React.useMemo(() => readSearchStateFromUrl(), []);
+  const [query, setQuery] = React.useState(initialSearchState.query);
+  const [filters, setFilters] = React.useState<Filters>(initialSearchState.filters);
+  const [page, setPage] = React.useState(initialSearchState.page);
   const [debugMode, setDebugMode] = React.useState(true);
   const [response, setResponse] = React.useState<SearchResponse | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
@@ -29,6 +38,22 @@ export function App() {
     () => ({ query, filters, sort: query.trim() ? 'relevance' : 'studentName', page, pageSize, debugMode }),
     [query, filters, page, debugMode],
   );
+
+  React.useEffect(() => {
+    writeSearchStateToUrl({ query, filters, page });
+  }, [query, filters, page]);
+
+  React.useEffect(() => {
+    function applyUrlState() {
+      const next = readSearchStateFromUrl();
+      setQuery(next.query);
+      setFilters(next.filters);
+      setPage(next.page);
+    }
+
+    window.addEventListener('popstate', applyUrlState);
+    return () => window.removeEventListener('popstate', applyUrlState);
+  }, []);
 
   React.useEffect(() => {
     const controller = new AbortController();
@@ -185,4 +210,60 @@ export function App() {
       {debugMode && <DebugPanel error={error} loading={loading} request={requestPayload} response={response} />}
     </main>
   );
+}
+
+function readSearchStateFromUrl(): UrlSearchState {
+  const searchParams = new URLSearchParams(window.location.search);
+  const page = Number.parseInt(searchParams.get('page') ?? '1', 10);
+  const filters: Filters = {};
+
+  for (const [key] of searchParams) {
+    if (reservedSearchParams.has(key) || filters[key]) {
+      continue;
+    }
+
+    const values = searchParams
+      .getAll(key)
+      .map((value) => value.trim())
+      .filter(Boolean);
+
+    if (values.length > 0) {
+      filters[key] = Array.from(new Set(values));
+    }
+  }
+
+  return {
+    query: searchParams.get('q') ?? '',
+    filters,
+    page: Number.isFinite(page) && page > 0 ? page : 1,
+  };
+}
+
+function writeSearchStateToUrl({ query, filters, page }: UrlSearchState) {
+  const searchParams = new URLSearchParams();
+  const trimmedQuery = query.trim();
+
+  if (trimmedQuery) {
+    searchParams.set('q', trimmedQuery);
+  }
+
+  for (const [facetId, values] of Object.entries(filters)) {
+    for (const value of values) {
+      if (value.trim()) {
+        searchParams.append(facetId, value);
+      }
+    }
+  }
+
+  if (page > 1) {
+    searchParams.set('page', String(page));
+  }
+
+  const queryString = searchParams.toString();
+  const nextUrl = `${window.location.pathname}${queryString ? `?${queryString}` : ''}${window.location.hash}`;
+  const currentUrl = `${window.location.pathname}${window.location.search}${window.location.hash}`;
+
+  if (nextUrl !== currentUrl) {
+    window.history.replaceState(null, '', nextUrl);
+  }
 }

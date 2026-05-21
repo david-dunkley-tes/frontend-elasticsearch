@@ -77,8 +77,17 @@ npm run dev
 - Facets use self-excluding counts.
 - Trust can be `null`; the UI displays this as `No trust`.
 - Result cards show whether a text search matched student, school, or trust fields.
+- Search query, selected filters, and page can be shared through the URL query string.
 - Searches can be saved, reapplied, and deleted from the frontend.
 - Saved searches are stored in `data/saved-searches.json` by default.
+
+## Deep Links
+
+Search state is encoded in the frontend URL. `q` stores the free-text query, `page` stores the current page when it is greater than one, and each selected filter is stored under its facet id. Multi-select filters use repeated parameters.
+
+```text
+http://127.0.0.1:5173/?q=westbrook&school=westbrook+college&yearGroup=year+9
+```
 
 ## Useful Test Searches
 
