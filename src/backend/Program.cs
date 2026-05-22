@@ -4,12 +4,16 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.OpenApi;
 using StudentSearch.Api.Configuration;
 using StudentSearch.Api.Health;
+using StudentSearch.Api.Infrastructure;
 using StudentSearch.Api.Infrastructure.Elasticsearch;
 using StudentSearch.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-builder.Services.AddControllers();
+builder.Services.AddControllers(options =>
+{
+    options.Filters.Add<RequireAuthenticatedApiUserFilter>();
+});
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {

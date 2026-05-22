@@ -9,6 +9,8 @@ services:
       - Elasticsearch__Url=http://elasticsearch:9200
     ports:
       - "5000:5000"
+    volumes:
+      - ./data:/data
     depends_on:
       elasticsearch:
         condition: service_healthy

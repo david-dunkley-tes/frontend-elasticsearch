@@ -4,7 +4,7 @@ namespace StudentSearch.Api.Services;
 
 public interface ISavedSearchService
 {
-    Task<IReadOnlyList<SavedSearch>> ListAsync();
-    Task<SavedSearch> SaveAsync(SaveSearchRequest request);
-    Task<bool> DeleteAsync(string id);
+    Task<IReadOnlyList<SavedSearch>> ListAsync(string ownerSub);
+    Task<SavedSearch> SaveAsync(string ownerSub, SaveSearchRequest request);
+    Task<bool> DeleteAsync(string ownerSub, string id);
 }

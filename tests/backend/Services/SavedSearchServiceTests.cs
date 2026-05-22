@@ -26,8 +26,8 @@ public sealed class SavedSearchServiceTests : IDisposable
             Sort: "relevance",
             PageSize: 250);
 
-        var saved = await service.SaveAsync(request);
-        var savedSearches = await service.ListAsync();
+        var saved = await service.SaveAsync("user-1", request);
+        var savedSearches = await service.ListAsync("user-1");
 
         Assert.Equal("Westbrook year 9", saved.Name);
         Assert.Equal("West", saved.Query);
@@ -42,11 +42,11 @@ public sealed class SavedSearchServiceTests : IDisposable
     {
         var service = CreateService();
 
-        var first = await service.SaveAsync(new SaveSearchRequest(Name: "First"));
+        var first = await service.SaveAsync("user-1", new SaveSearchRequest(Name: "First"));
         await Task.Delay(5);
-        var second = await service.SaveAsync(new SaveSearchRequest(Name: "Second"));
+        var second = await service.SaveAsync("user-1", new SaveSearchRequest(Name: "Second"));
 
-        var savedSearches = await service.ListAsync();
+        var savedSearches = await service.ListAsync("user-1");
 
         Assert.Equal([second.Id, first.Id], savedSearches.Select(search => search.Id).ToArray());
     }
@@ -55,10 +55,10 @@ public sealed class SavedSearchServiceTests : IDisposable
     public async Task DeleteAsync_RemovesExistingSavedSearch()
     {
         var service = CreateService();
-        var saved = await service.SaveAsync(new SaveSearchRequest(Name: "Remove me"));
+        var saved = await service.SaveAsync("user-1", new SaveSearchRequest(Name: "Remove me"));
 
-        var removed = await service.DeleteAsync(saved.Id);
-        var savedSearches = await service.ListAsync();
+        var removed = await service.DeleteAsync("user-1", saved.Id);
+        var savedSearches = await service.ListAsync("user-1");
 
         Assert.True(removed);
         Assert.Empty(savedSearches);
@@ -69,7 +69,60 @@ public sealed class SavedSearchServiceTests : IDisposable
     {
         var service = CreateService();
 
-        await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync(new SaveSearchRequest(Name: " ")));
+        await Assert.ThrowsAsync<ArgumentException>(() => service.SaveAsync("user-1", new SaveSearchRequest(Name: " ")));
+    }
+
+    [Fact]
+    public async Task ListAsync_ReturnsOnlySavedSearchesForOwner()
+    {
+        var service = CreateService();
+        var ownSearch = await service.SaveAsync("user-1", new SaveSearchRequest(Name: "Mine"));
+        await service.SaveAsync("user-2", new SaveSearchRequest(Name: "Theirs"));
+
+        var savedSearches = await service.ListAsync("user-1");
+
+        var savedSearch = Assert.Single(savedSearches);
+        Assert.Equal(ownSearch.Id, savedSearch.Id);
+    }
+
+    [Fact]
+    public async Task DeleteAsync_DoesNotRemoveAnotherOwnersSavedSearch()
+    {
+        var service = CreateService();
+        var saved = await service.SaveAsync("user-1", new SaveSearchRequest(Name: "Mine"));
+
+        var removed = await service.DeleteAsync("user-2", saved.Id);
+        var savedSearches = await service.ListAsync("user-1");
+
+        Assert.False(removed);
+        Assert.Single(savedSearches);
+    }
+
+    [Fact]
+    public async Task ListAsync_IgnoresLegacyOwnerlessSavedSearches()
+    {
+        Directory.CreateDirectory(_tempRoot);
+        await File.WriteAllTextAsync(
+            Path.Combine(_tempRoot, "saved-searches.json"),
+            """
+            [
+              {
+                "id": "legacy-1",
+                "name": "Legacy",
+                "query": "West",
+                "filters": {},
+                "sort": "relevance",
+                "pageSize": 10,
+                "createdAt": "2026-05-21T12:00:00Z"
+              }
+            ]
+            """);
+
+        var service = CreateService();
+
+        var savedSearches = await service.ListAsync("user-1");
+
+        Assert.Empty(savedSearches);
     }
 
     public void Dispose()

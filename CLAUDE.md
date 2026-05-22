@@ -25,7 +25,7 @@ dotnet test  tests/backend/StudentSearch.Api.Tests.csproj
 dotnet test  tests/backend/StudentSearch.Api.Tests.csproj --filter "FullyQualifiedName~SearchControllerTests"
 ```
 
-`docker compose up -d` runs the backend in a container on :5000, so don't also `dotnet run` the API at the same time — start only `elasticsearch` with compose when you want to run the backend locally.
+`docker compose up -d` runs the backend in a container on :5000, so don't also `dotnet run` the API at the same time — start only `elasticsearch` with compose when you want to run the backend locally. The backend container bind-mounts `./data` to `/data`, so containerized saved-search writes land in the workspace data folder.
 
 Swagger UI is available in development at `http://localhost:5000/swagger`. Try-it-out requests automatically use the same Kingfisher Academy dev token as the frontend.
 
@@ -81,16 +81,17 @@ These are deliberate and called out in `README.md`; preserve them when editing s
 - Non-empty `query` sorts by Elasticsearch `_score`; empty `query` sorts by `student.surname.keyword` then `student.foreName.keyword`.
 - Free-text query combines exact ID match, phrase boosts, and a fuzzy `multi_match` (`type: best_fields`, `fuzziness: AUTO`) across student/school/trust fields.
 - Facets use **self-excluding counts** (each facet aggregation excludes its own selected filter).
+- The frontend hides facet groups with only one available option and sorts the `yearGroup` facet by the numeric year while preserving labels.
 - `trust` can be `null`; the index uses sentinel `__NO_TRUST__` for the "missing" bucket and the UI renders it as "No trust".
 - Page size is clamped to `[1, 100]` in `StudentSearchService.NormalizeRequest`.
 
 ### Saved searches
 
-Persisted to `data/saved-searches.json` (gitignored). `SavedSearchService` is a `Singleton` and serializes file writes itself — don't introduce a second writer.
+Persisted to `data/saved-searches.json` (gitignored) and scoped by the authenticated token subject (`sub`). The frontend never sends an owner id; `SavedSearchesController` derives it from the current user. `SavedSearchService` is a `Singleton` and serializes file writes itself — don't introduce a second writer.
 
 ## Frontend Architecture
 
-`src/frontend/src/App.tsx` is the single stateful component: it owns query/filters/page/debugMode, syncs them to/from the URL query string (`q`, `page`, and one param per facet — multi-select uses repeated params), and reacts to `popstate`. Effects re-fetch search results whenever the request payload changes (with `AbortController` to cancel stale requests). Components under `components/` are presentational.
+`src/frontend/src/App.tsx` is the single stateful component: it owns query/filters/page/debugMode, syncs them to/from the URL query string (`q`, `page`, and one param per facet — multi-select uses repeated params), and reacts to `popstate`. Debug mode is off by default and is toggled from the page footer alongside Reindex. Effects re-fetch search results whenever the request payload changes (with `AbortController` to cancel stale requests). Components under `components/` are presentational.
 
 API calls go through `src/api/studentSearchApi.ts`, which hard-codes `API_BASE = http://<hostname>:5000` and builds a dev bearer token in-browser via `encodeDevAccessToken`. The current dev token is scoped to `SCH-KINGFISHER` (Kingfisher Academy); change the payload there to test other scope shapes.
 

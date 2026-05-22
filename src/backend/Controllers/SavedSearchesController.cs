@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Mvc;
 using StudentSearch.Api.Models;
 using StudentSearch.Api.Services;
@@ -11,7 +12,7 @@ public sealed class SavedSearchesController(ISavedSearchService savedSearchServi
     [HttpGet]
     public async Task<ActionResult<IReadOnlyList<SavedSearch>>> List()
     {
-        return Ok(await savedSearchService.ListAsync());
+        return Ok(await savedSearchService.ListAsync(GetOwnerSub()));
     }
 
     [HttpPost]
@@ -19,7 +20,7 @@ public sealed class SavedSearchesController(ISavedSearchService savedSearchServi
     {
         try
         {
-            var savedSearch = await savedSearchService.SaveAsync(request);
+            var savedSearch = await savedSearchService.SaveAsync(GetOwnerSub(), request);
             return CreatedAtAction(nameof(List), new { id = savedSearch.Id }, savedSearch);
         }
         catch (ArgumentException ex)
@@ -31,6 +32,11 @@ public sealed class SavedSearchesController(ISavedSearchService savedSearchServi
     [HttpDelete("{id}")]
     public async Task<IActionResult> Delete(string id)
     {
-        return await savedSearchService.DeleteAsync(id) ? NoContent() : NotFound();
+        return await savedSearchService.DeleteAsync(GetOwnerSub(), id) ? NoContent() : NotFound();
+    }
+
+    private string GetOwnerSub()
+    {
+        return User.FindFirstValue("sub") ?? User.FindFirstValue(ClaimTypes.NameIdentifier) ?? throw new InvalidOperationException("Authenticated user subject is required.");
     }
 }

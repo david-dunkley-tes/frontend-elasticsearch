@@ -230,7 +230,7 @@ describe('App', () => {
       page: 1,
       pageSize: 10,
       sort: 'relevance',
-      debugMode: true,
+      debugMode: false,
     });
   });
 
@@ -265,6 +265,54 @@ describe('App', () => {
       expect(lastSearchRequest().filters).toEqual({ school: ['westbrook college'] });
     });
     expect(screen.getByRole('button', { name: /school: westbrook college/i })).toBeInTheDocument();
+  });
+
+  it('hides facet groups with only one available option', async () => {
+    installFetchMock([
+      {
+        ...baseResponse,
+        facets: {
+          ...baseResponse.facets,
+          school: {
+            ...baseResponse.facets.school,
+            options: [{ value: 'westbrook college', label: 'Westbrook College', count: 2, selected: false }],
+          },
+        },
+      },
+    ]);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    const filtersPanel = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
+    expect(within(filtersPanel).queryByRole('heading', { name: 'School' })).not.toBeInTheDocument();
+    expect(within(filtersPanel).getByRole('heading', { name: 'Year group' })).toBeInTheDocument();
+  });
+
+  it('sorts year group facet options by year number while preserving labels', async () => {
+    installFetchMock([
+      {
+        ...baseResponse,
+        facets: {
+          ...baseResponse.facets,
+          yearGroup: {
+            ...baseResponse.facets.yearGroup,
+            options: [
+              { value: 'Year 10', label: 'Year 10', count: 1, selected: false },
+              { value: 'Year 11', label: 'Year 11', count: 1, selected: false },
+              { value: 'Year 8', label: 'Year 8', count: 1, selected: false },
+            ],
+          },
+        },
+      },
+    ]);
+
+    render(<App />);
+    await waitForInitialSearch();
+
+    const yearGroup = screen.getByRole('heading', { name: 'Year group' }).closest('section')!;
+    const options = Array.from(yearGroup.querySelectorAll('label span')).map((option) => option.textContent);
+    expect(options).toEqual(['Year 8', 'Year 10', 'Year 11']);
   });
 
   it('initializes the active search from query string parameters', async () => {
@@ -339,14 +387,19 @@ describe('App', () => {
     });
   });
 
-  it('shows request and response data when debug mode is enabled', async () => {
+  it('shows request and response data when debug mode is enabled from the footer', async () => {
+    const user = userEvent.setup();
     installFetchMock();
 
     render(<App />);
     await waitForInitialSearch();
 
+    expect(screen.queryByRole('heading', { name: 'Debug Mode' })).not.toBeInTheDocument();
+
+    await user.click(screen.getByLabelText('Debug'));
+
     expect(screen.getByRole('heading', { name: 'Debug Mode' })).toBeInTheDocument();
-    expect(screen.getByText(/"debugMode": true/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/"debugMode": true/)).toBeInTheDocument());
     expect(screen.getByText(/"total": 2/)).toBeInTheDocument();
   });
 

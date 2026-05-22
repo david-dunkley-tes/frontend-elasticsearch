@@ -42,10 +42,11 @@ input {
   color: #586576;
 }
 
-.topbar-actions {
+.topbar-user {
   display: flex;
   align-items: center;
   gap: 10px;
+  justify-content: flex-end;
 }
 
 .user-pill {
@@ -520,6 +521,13 @@ dd {
   padding: 16px;
 }
 
+.page-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 .debug-header {
   display: flex;
   justify-content: space-between;
@@ -564,6 +572,11 @@ dd {
   .results-summary {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .topbar-user,
+  .page-footer {
+    justify-content: flex-start;
   }
 
   .workspace {

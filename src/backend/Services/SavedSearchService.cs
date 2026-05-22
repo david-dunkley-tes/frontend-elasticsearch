@@ -13,13 +13,19 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
 
     private readonly SemaphoreSlim _fileLock = new(1, 1);
 
-    public async Task<IReadOnlyList<SavedSearch>> ListAsync()
+    public async Task<IReadOnlyList<SavedSearch>> ListAsync(string ownerSub)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerSub);
+
         await _fileLock.WaitAsync();
         try
         {
             var savedSearches = await ReadAllUnsafeAsync();
-            return savedSearches.OrderByDescending(search => search.CreatedAt).ToList();
+            return savedSearches
+                .Where(search => string.Equals(search.OwnerSub, ownerSub, StringComparison.OrdinalIgnoreCase))
+                .Select(search => search.ToSavedSearch())
+                .OrderByDescending(search => search.CreatedAt)
+                .ToList();
         }
         finally
         {
@@ -27,16 +33,19 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
         }
     }
 
-    public async Task<SavedSearch> SaveAsync(SaveSearchRequest request)
+    public async Task<SavedSearch> SaveAsync(string ownerSub, SaveSearchRequest request)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerSub);
+
         var name = request.Name.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new ArgumentException("Saved search name is required.", nameof(request));
         }
 
-        var savedSearch = new SavedSearch(
+        var savedSearch = new StoredSavedSearch(
             Guid.NewGuid().ToString("N"),
+            ownerSub,
             name,
             request.Query.Trim(),
             NormalizeFilters(request.Filters),
@@ -50,7 +59,7 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
             var savedSearches = await ReadAllUnsafeAsync();
             savedSearches.Add(savedSearch);
             await WriteAllUnsafeAsync(savedSearches);
-            return savedSearch;
+            return savedSearch.ToSavedSearch();
         }
         finally
         {
@@ -58,13 +67,17 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
         }
     }
 
-    public async Task<bool> DeleteAsync(string id)
+    public async Task<bool> DeleteAsync(string ownerSub, string id)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ownerSub);
+
         await _fileLock.WaitAsync();
         try
         {
             var savedSearches = await ReadAllUnsafeAsync();
-            var removed = savedSearches.RemoveAll(search => string.Equals(search.Id, id, StringComparison.OrdinalIgnoreCase)) > 0;
+            var removed = savedSearches.RemoveAll(search =>
+                string.Equals(search.OwnerSub, ownerSub, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(search.Id, id, StringComparison.OrdinalIgnoreCase)) > 0;
             if (removed)
             {
                 await WriteAllUnsafeAsync(savedSearches);
@@ -78,7 +91,7 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
         }
     }
 
-    private async Task<List<SavedSearch>> ReadAllUnsafeAsync()
+    private async Task<List<StoredSavedSearch>> ReadAllUnsafeAsync()
     {
         if (!File.Exists(configuration.SavedSearchesPath))
         {
@@ -86,10 +99,10 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
         }
 
         await using var stream = File.OpenRead(configuration.SavedSearchesPath);
-        return await JsonSerializer.DeserializeAsync<List<SavedSearch>>(stream, SerializerOptions) ?? [];
+        return await JsonSerializer.DeserializeAsync<List<StoredSavedSearch>>(stream, SerializerOptions) ?? [];
     }
 
-    private async Task WriteAllUnsafeAsync(List<SavedSearch> savedSearches)
+    private async Task WriteAllUnsafeAsync(List<StoredSavedSearch> savedSearches)
     {
         var directory = Path.GetDirectoryName(configuration.SavedSearchesPath);
         if (!string.IsNullOrWhiteSpace(directory))
@@ -116,5 +129,21 @@ public sealed class SavedSearchService(SearchConfiguration configuration) : ISav
             })
             .Where(filter => filter.Values.Count > 0)
             .ToDictionary(filter => filter.Key, filter => filter.Values, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private sealed record StoredSavedSearch(
+        string Id,
+        string? OwnerSub,
+        string Name,
+        string Query,
+        Dictionary<string, List<string>> Filters,
+        string Sort,
+        int PageSize,
+        DateTimeOffset CreatedAt)
+    {
+        public SavedSearch ToSavedSearch()
+        {
+            return new SavedSearch(Id, Name, Query, Filters, Sort, PageSize, CreatedAt);
+        }
     }
 }

@@ -48,6 +48,8 @@ Start Elasticsearch and the containerized backend:
 docker compose up -d
 ```
 
+The backend container bind-mounts `./data` to `/data`, so saved searches created through Docker-backed local development are written to the workspace `data/saved-searches.json` file.
+
 Or start only Elasticsearch and run the backend directly:
 
 ```bash
@@ -82,13 +84,16 @@ npm run dev
 - Query strategy combines exact student ID matching, phrase boosts, and fuzzy `multi_match` with `type: best_fields` and `fuzziness: AUTO`.
 - Facets are returned from `POST /api/search`.
 - Facets use self-excluding counts.
+- Facet groups with only one available option are hidden in the frontend.
+- The year group facet is displayed in numeric year order, while preserving labels such as `Year 8`.
 - Trust can be `null`; the UI displays this as `No trust`.
 - Result cards show whether a text search matched student, school, or trust fields.
 - Search query, selected filters, and page can be shared through the URL query string.
 - School and trust names in results can be used to drill down into filtered searches.
 - Searches can be saved, reapplied, and deleted from the frontend.
-- Saved searches are stored in `data/saved-searches.json` by default.
+- Saved searches are scoped to the authenticated dev token subject and stored in `data/saved-searches.json` by default.
 - The frontend reads `/version` on startup and includes the API version in the browser page title.
+- Debug mode is off by default; the Reindex and Debug controls are in the page footer.
 
 ## Deep Links
 
