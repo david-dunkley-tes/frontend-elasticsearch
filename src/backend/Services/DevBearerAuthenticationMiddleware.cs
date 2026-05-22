@@ -15,7 +15,7 @@ public sealed class DevBearerAuthenticationMiddleware(RequestDelegate next)
     {
         if (HttpMethods.IsOptions(context.Request.Method) ||
             !context.Request.Path.StartsWithSegments("/api") ||
-            context.Request.Path.StartsWithSegments("/api/health"))
+            context.Request.Path.StartsWithSegments("/health"))
         {
             await next(context);
             return;

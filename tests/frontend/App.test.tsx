@@ -4,7 +4,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/frontend/src/App';
-import type { CurrentUser, SavedSearch, SearchResponse } from '../../src/frontend/src/types';
+import type { CurrentUser, SavedSearch, SearchResponse, VersionInfo } from '../../src/frontend/src/types';
 
 const baseResponse: SearchResponse = {
   total: 2,
@@ -95,6 +95,14 @@ const currentUser: CurrentUser = {
   scopes: [{ type: 'global' }],
 };
 
+const versionInfo: VersionInfo = {
+  service: 'StudentSearch.Api',
+  version: '1.0.0',
+  commit: 'local',
+  buildTime: 'unknown',
+  environment: 'Development',
+};
+
 function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], initialSavedSearches: SavedSearch[] = []) {
   const searchQueue = [...searchResponses];
   let savedSearchQueue = [...initialSavedSearches];
@@ -109,6 +117,10 @@ function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], in
 
     if (url.endsWith('/api/auth/me')) {
       return jsonResponse(currentUser);
+    }
+
+    if (url.endsWith('/version')) {
+      return jsonResponse(versionInfo);
     }
 
     if (url.endsWith('/api/saved-searches') && method === 'GET') {
@@ -160,6 +172,7 @@ function lastSearchRequest() {
 
 beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
+  document.title = 'Student Search POC';
   window.history.replaceState(null, '', '/');
 });
 
@@ -169,6 +182,14 @@ afterEach(() => {
 });
 
 describe('App', () => {
+  it('shows the API version in the page title', async () => {
+    installFetchMock();
+
+    render(<App />);
+
+    await waitFor(() => expect(document.title).toBe('Student Search POC v1.0.0'));
+  });
+
   it('renders search results and student details returned by the API', async () => {
     installFetchMock();
 

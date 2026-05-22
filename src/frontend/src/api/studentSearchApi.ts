@@ -1,4 +1,4 @@
-import type { CurrentUser, SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse } from '../types';
+import type { CurrentUser, SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
 
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
 const DEV_ACCESS_TOKEN = encodeDevAccessToken({
@@ -74,6 +74,16 @@ export async function getCurrentUser() {
   }
 
   return response.json() as Promise<CurrentUser>;
+}
+
+export async function getVersionInfo() {
+  const response = await fetch(`${API_BASE}/version`);
+
+  if (!response.ok) {
+    throw new Error(await response.text());
+  }
+
+  return response.json() as Promise<VersionInfo>;
 }
 
 function encodeDevAccessToken(payload: { sub: string; name: string; scopes: Array<Record<string, string>> }) {

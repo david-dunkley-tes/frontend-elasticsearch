@@ -1,5 +1,5 @@
 import React from 'react';
-import { deleteSavedSearch, getCurrentUser, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, getCurrentUser, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { DebugPanel } from './components/DebugPanel';
 import { FacetGroup } from './components/FacetGroup';
 import { ResultsPanel } from './components/ResultsPanel';
@@ -85,6 +85,26 @@ export function App() {
     listSavedSearches()
       .then(setSavedSearches)
       .catch((err: Error) => setError(err.message));
+  }, []);
+
+  React.useEffect(() => {
+    let active = true;
+
+    getVersionInfo()
+      .then((versionInfo) => {
+        if (active) {
+          document.title = `Student Search POC v${versionInfo.version}`;
+        }
+      })
+      .catch(() => {
+        if (active) {
+          document.title = 'Student Search POC';
+        }
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   const selectedResult = response?.results.find((result) => result.id === selectedId) ?? response?.results[0] ?? null;

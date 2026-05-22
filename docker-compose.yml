@@ -1,4 +1,23 @@
 services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+    container_name: student-search-backend
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - Elasticsearch__Url=http://elasticsearch:9200
+    ports:
+      - "5000:5000"
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:5000/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
   elasticsearch:
     image: docker.elastic.co/elasticsearch/elasticsearch:9.4.0
     container_name: student-search-elasticsearch

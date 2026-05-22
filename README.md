@@ -15,6 +15,7 @@ Elastic .NET SDK:           9.4.0
 ```text
 /
   docker-compose.yml
+  Dockerfile.backend
   AGENTS.md
   data/students.seed.json
   tests/backend
@@ -34,22 +35,27 @@ When requested, it builds the backend and frontend, runs backend and frontend te
 ```text
 Frontend:      http://localhost:5173
 Backend API:   http://localhost:5000
+Swagger UI:    http://localhost:5000/swagger
+Version:       http://localhost:5000/version
 Elasticsearch: http://localhost:9200
 ```
 
 ## Run Locally
 
-Start Elasticsearch:
+Start Elasticsearch and the containerized backend:
 
 ```bash
 docker compose up -d
 ```
 
-Start the backend:
+Or start only Elasticsearch and run the backend directly:
 
 ```bash
+docker compose up -d elasticsearch
 dotnet run --project src/backend
 ```
+
+Swagger UI is available in development at `http://localhost:5000/swagger`. Try-it-out requests automatically use the same Kingfisher Academy dev token as the frontend.
 
 Seed the index:
 
@@ -82,6 +88,7 @@ npm run dev
 - School and trust names in results can be used to drill down into filtered searches.
 - Searches can be saved, reapplied, and deleted from the frontend.
 - Saved searches are stored in `data/saved-searches.json` by default.
+- The frontend reads `/version` on startup and includes the API version in the browser page title.
 
 ## Deep Links
 
@@ -107,7 +114,9 @@ The frontend sends this as `Authorization: Bearer <token>`. The backend middlewa
 
 Supported development scope types are `global`, `trust`, `school`, and `schoolGroup`. Scopes are additive, so a token can combine a trust with schools outside that trust. The current frontend dev token is scoped to `Kingfisher Academy` using `SCH-KINGFISHER`.
 
-All `/api` endpoints require the bearer token except `/api/health`.
+All `/api` endpoints require the bearer token. Standard health checks are unauthenticated at `/health/live` and `/health/ready`.
+
+Build/version metadata is unauthenticated at `/version`. It reports the service name, version, commit, build time, and environment. `APP_VERSION`, `GIT_COMMIT`, and `BUILD_TIME` can be injected by Docker or CI; local development falls back to assembly version, `local`, and `unknown`.
 
 ## Useful Test Searches
 
@@ -184,6 +193,14 @@ Saves the current query, filters, sort, and page size.
 
 Deletes a saved search.
 
-### `GET /api/health`
+### `GET /health/live`
 
-Returns a simple health status.
+Returns process liveness only. This endpoint does not check Elasticsearch or other external dependencies.
+
+### `GET /health/ready`
+
+Returns readiness as JSON. This endpoint checks Elasticsearch and returns unhealthy when Elasticsearch cannot serve the cluster health request.
+
+### `GET /version`
+
+Returns service build/version metadata.

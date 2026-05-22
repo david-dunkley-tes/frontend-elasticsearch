@@ -91,3 +91,11 @@ export type CurrentUser = {
   name?: string;
   scopes: AuthorizationScope[];
 };
+
+export type VersionInfo = {
+  service: string;
+  version: string;
+  commit: string;
+  buildTime: string;
+  environment: string;
+};

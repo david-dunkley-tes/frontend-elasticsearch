@@ -1,0 +1,11 @@
+.git
+.codex
+node_modules
+src/frontend/node_modules
+src/backend/bin
+src/backend/obj
+tests/backend/bin
+tests/backend/obj
+**/dist
+**/coverage
+data/saved-searches.json
