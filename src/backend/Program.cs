@@ -5,7 +5,9 @@ using Microsoft.OpenApi;
 using StudentSearch.Api.Configuration;
 using StudentSearch.Api.Health;
 using StudentSearch.Api.Infrastructure;
+using StudentSearch.Api.Infrastructure.Anthropic;
 using StudentSearch.Api.Infrastructure.Elasticsearch;
+using StudentSearch.Api.Infrastructure.Voyage;
 using StudentSearch.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -45,6 +47,7 @@ builder.Services.AddCors(options =>
 });
 
 builder.Services.AddSingleton<SearchConfiguration>();
+builder.Services.AddSingleton<RagConfiguration>();
 builder.Services.AddSingleton(sp =>
 {
     var configuration = sp.GetRequiredService<SearchConfiguration>();
@@ -58,6 +61,19 @@ builder.Services.AddScoped<IStudentSearchIndex, ElasticsearchStudentSearchIndex>
 builder.Services.AddScoped<IStudentIndexSeeder, ElasticsearchStudentIndexSeeder>();
 builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 builder.Services.AddSingleton<IVersionInfoProvider, VersionInfoProvider>();
+builder.Services.AddScoped<IStudentKnnRetriever, ElasticsearchStudentKnnRetriever>();
+builder.Services.AddSingleton<INarrativeRedactor, NarrativeRedactor>();
+builder.Services.AddScoped<IRagService, RagService>();
+builder.Services.AddHttpClient<IEmbeddingClient, VoyageEmbeddingClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.voyageai.com/");
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
+builder.Services.AddHttpClient<IAnthropicClient, AnthropicMessagesClient>(client =>
+{
+    client.BaseAddress = new Uri("https://api.anthropic.com/");
+    client.Timeout = TimeSpan.FromSeconds(60);
+});
 builder.Services.AddHealthChecks()
     .AddCheck("self", () => HealthCheckResult.Healthy(), tags: ["live"])
     .AddCheck<ElasticsearchHealthCheck>("elasticsearch", tags: ["ready"]);

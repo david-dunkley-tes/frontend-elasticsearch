@@ -17,11 +17,18 @@ export type Trust = {
   name: string;
 } | null;
 
+export type SafeguardingLog = {
+  category: string;
+  date: string;
+  narrative: string;
+};
+
 export type SearchResult = {
   id: string;
   student: Student;
   school: School;
   trust: Trust;
+  safeguardingLog?: SafeguardingLog | null;
   highlights: Record<string, string[]>;
   score?: number | null;
 };
@@ -84,6 +91,40 @@ export type AuthorizationScope = {
   trustId?: string;
   schoolGroupId?: string;
   schoolIds?: string[];
+};
+
+export type RagSource = {
+  studentId: string;
+  fullName: string;
+  yearGroup: string;
+  schoolId: string;
+  schoolName: string;
+  trustName?: string | null;
+  category: string;
+  date: string;
+  narrative: string;
+  score?: number | null;
+};
+
+export type RagDebug = {
+  embeddingModel: string;
+  completionModel: string;
+  retrievedCount: number;
+  knnQuery?: unknown;
+  systemPrompt: string;
+  userPrompt: string;
+  rawCompletion: string;
+};
+
+export type RagAnswer = {
+  answer: string;
+  sources: RagSource[];
+  debug?: RagDebug | null;
+};
+
+export type RagHealth = {
+  enabled: boolean;
+  reason?: string | null;
 };
 
 export type VersionInfo = {

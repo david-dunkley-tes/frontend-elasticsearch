@@ -329,7 +329,7 @@ public sealed class ElasticsearchStudentSearchIndex(
             var source = hit["_source"]!;
             var record = source.Deserialize<StudentRecord>(JsonOptions())!;
             var highlight = hit["highlight"]?.Deserialize<Dictionary<string, string[]>>(JsonOptions()) ?? new();
-            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, highlight, hit["_score"]?.GetValue<double?>()));
+            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.SafeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
         }
 
         return new SearchResponse(

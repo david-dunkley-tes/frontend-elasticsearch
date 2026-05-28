@@ -1,3 +1,4 @@
+import { formatCategoryLabel } from '../format';
 import type { SearchResult } from '../types';
 import { Highlights } from './Highlights';
 
@@ -42,6 +43,16 @@ export function StudentDetail({ result, onDrillDown }: StudentDetailProps) {
           )}
         </h3>
       </div>
+      {result.safeguardingLog && (
+        <div className="safeguarding-block">
+          <span className="eyebrow">Safeguarding</span>
+          <div className="safeguarding-meta">
+            <span className="safeguarding-category">{formatCategoryLabel(result.safeguardingLog.category)}</span>
+            <span className="safeguarding-date">Logged {result.safeguardingLog.date}</span>
+          </div>
+          <p className="safeguarding-narrative">{result.safeguardingLog.narrative}</p>
+        </div>
+      )}
       <div>
         <span className="eyebrow">Matched fields</span>
         <Highlights highlights={result.highlights} />

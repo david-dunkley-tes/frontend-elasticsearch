@@ -1,9 +1,11 @@
 import React from 'react';
 import { Bug, Database } from 'lucide-react';
-import { deleteSavedSearch, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, getAskHealth, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { useActiveUser } from './auth/ActiveUserContext';
 import { USER_PRESETS, type UserPresetId } from './auth/userPresets';
+import { AskPanel } from './components/AskPanel';
 import { DebugPanel } from './components/DebugPanel';
+import { DemoBanner } from './components/DemoBanner';
 import { FacetGroup } from './components/FacetGroup';
 import { ResultsPanel } from './components/ResultsPanel';
 import { SearchBox } from './components/SearchBox';
@@ -11,7 +13,7 @@ import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
-import type { Facet, Filters, SavedSearch, SearchResponse } from './types';
+import type { Facet, Filters, RagAnswer, RagSource, SavedSearch, SearchResponse } from './types';
 
 const reservedSearchParams = new Set(['q', 'page']);
 
@@ -36,6 +38,8 @@ export function App() {
   const [savingSearch, setSavingSearch] = React.useState(false);
   const [reindexing, setReindexing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [ragHealth, setRagHealth] = React.useState<{ enabled: boolean; reason: string | null }>({ enabled: false, reason: null });
+  const [ragAnswer, setRagAnswer] = React.useState<RagAnswer | null>(null);
   const pageSize = 10;
 
   const requestPayload = React.useMemo(
@@ -82,10 +86,15 @@ export function App() {
 
   React.useEffect(() => {
     setSavedSearches([]);
+    setRagAnswer(null);
 
     listSavedSearches()
       .then(setSavedSearches)
       .catch((err: Error) => setError(err.message));
+
+    getAskHealth()
+      .then((health) => setRagHealth({ enabled: health.enabled, reason: health.reason ?? null }))
+      .catch(() => setRagHealth({ enabled: false, reason: 'Ask health check failed' }));
   }, [presetId]);
 
   React.useEffect(() => {
@@ -211,8 +220,16 @@ export function App() {
     setResponse(null);
   }
 
+  function handleSourceClick(source: RagSource) {
+    setQuery(source.studentId);
+    setFilters({});
+    setPage(1);
+    setSelectedId(source.studentId);
+  }
+
   return (
     <main className="app-shell">
+      <DemoBanner />
       <TopBar
         presets={USER_PRESETS}
         activePresetId={presetId}
@@ -220,6 +237,13 @@ export function App() {
       />
       <SearchBox query={query} onChange={updateQuery} />
       <SelectedFilters filters={filters} response={response} onClear={clearFilter} />
+      <AskPanel
+        enabled={ragHealth.enabled}
+        disabledReason={ragHealth.reason}
+        debugMode={debugMode}
+        onAnswerChange={setRagAnswer}
+        onSourceClick={handleSourceClick}
+      />
 
       <section className="workspace">
         <aside className="filters-panel">
@@ -261,7 +285,7 @@ export function App() {
         </aside>
       </section>
 
-      {debugMode && <DebugPanel error={error} loading={loading} request={requestPayload} response={response} />}
+      {debugMode && <DebugPanel error={error} loading={loading} request={requestPayload} response={response} ragAnswer={ragAnswer} />}
 
       <footer className="page-footer">
         <button className="icon-button" onClick={reindex} disabled={reindexing} title="Reindex seed data">

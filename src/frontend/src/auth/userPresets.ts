@@ -17,37 +17,37 @@ export type UserPreset = {
 export const USER_PRESETS: UserPreset[] = [
   {
     id: 'global',
-    label: 'Global admin (all schools)',
+    label: 'MAT Safeguarding Lead (all schools)',
     token: {
-      sub: 'dev-global-admin',
-      name: 'Global Admin',
+      sub: 'dev-mat-safeguarding-lead',
+      name: 'MAT Safeguarding Lead',
       scopes: [{ type: 'global' }],
     },
   },
   {
     id: 'trust',
-    label: 'Trust admin (Coastal Schools)',
+    label: 'Coastal Schools Trust DSL',
     token: {
-      sub: 'dev-trust-coastal',
-      name: 'Coastal Schools Trust admin',
+      sub: 'dev-trust-coastal-dsl',
+      name: 'Coastal Schools Trust DSL',
       scopes: [{ type: 'trust', trustId: 'TRUST-COASTAL-SCHOOLS' }],
     },
   },
   {
     id: 'school',
-    label: 'School admin (Kingfisher Primary)',
+    label: 'Kingfisher Primary DSL',
     token: {
-      sub: 'dev-kingfisher-academy',
-      name: 'Kingfisher Primary School',
+      sub: 'dev-kingfisher-dsl',
+      name: 'Kingfisher Primary DSL',
       scopes: [{ type: 'school', schoolId: 'SCH-KINGFISHER' }],
     },
   },
   {
     id: 'schoolGroup',
-    label: 'School group user (3 schools)',
+    label: 'Local Authority Officer (3 schools)',
     token: {
-      sub: 'dev-school-group',
-      name: 'Cross-trust school group',
+      sub: 'dev-local-authority-officer',
+      name: 'Local Authority Officer',
       scopes: [
         {
           type: 'schoolGroup',
