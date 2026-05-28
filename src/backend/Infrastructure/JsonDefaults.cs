@@ -11,4 +11,9 @@ public static class JsonDefaults
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
     };
+
+    public static readonly JsonSerializerOptions WebIndented = new(JsonSerializerDefaults.Web)
+    {
+        WriteIndented = true,
+    };
 }

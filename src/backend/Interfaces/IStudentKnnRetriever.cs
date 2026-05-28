@@ -1,11 +1,10 @@
-using System.Text.Json.Nodes;
 using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Interfaces;
 
 public sealed record KnnHit(StudentRecord Record, double Score);
 
-public sealed record KnnSearchResult(IReadOnlyList<KnnHit> Hits, JsonNode Query);
+public sealed record KnnSearchResult(IReadOnlyList<KnnHit> Hits, string Query);
 
 public interface IStudentKnnRetriever
 {

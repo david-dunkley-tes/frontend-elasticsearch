@@ -23,7 +23,7 @@ public sealed class ElasticsearchStudentKnnRetriever(
         var query = BuildKnnPayload(queryVector, topK, authorizationScope);
         var response = await gateway.SendAsync(HttpMethod.Post, $"/{configuration.IndexName}/_search", query);
         var hits = MapHits(response);
-        return new KnnSearchResult(hits, query);
+        return new KnnSearchResult(hits, query.ToJsonString(JsonDefaults.WebIndented));
     }
 
     private static JsonObject BuildKnnPayload(float[] queryVector, int topK, AuthorizedSchoolScope authorizationScope)

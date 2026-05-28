@@ -47,13 +47,18 @@ export type Facet = {
   options: FacetOption[];
 };
 
+export type SearchDebug = {
+  elasticsearchQuery: string;
+  selectedFilters: Record<string, string[]>;
+};
+
 export type SearchResponse = {
   total: number;
   tookMs: number;
   backendTookMs: number;
   results: SearchResult[];
   facets: Record<string, Facet>;
-  debug?: unknown;
+  debug?: SearchDebug | null;
 };
 
 export type Filters = Record<string, string[]>;
@@ -110,7 +115,7 @@ export type RagDebug = {
   embeddingModel: string;
   completionModel: string;
   retrievedCount: number;
-  knnQuery?: unknown;
+  knnQuery?: string | null;
   systemPrompt: string;
   userPrompt: string;
   rawCompletion: string;

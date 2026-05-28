@@ -339,7 +339,7 @@ public sealed class ElasticsearchStudentSearchIndex(
             backendTookMs,
             results,
             MapFacets(request, response["aggregations"]!),
-            request.DebugMode ? new SearchDebug(query, request.Filters) : null);
+            request.DebugMode ? new SearchDebug(query.ToJsonString(JsonDefaults.WebIndented), request.Filters) : null);
     }
 
     private static Dictionary<string, FacetResponse> MapFacets(SearchRequest request, JsonNode aggregations)

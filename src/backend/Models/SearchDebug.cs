@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace StudentSearch.Api.Models;
 
-public sealed record SearchDebug(JsonObject ElasticsearchQuery, IReadOnlyDictionary<string, List<string>> SelectedFilters);
+public sealed record SearchDebug(string ElasticsearchQuery, IReadOnlyDictionary<string, List<string>> SelectedFilters);

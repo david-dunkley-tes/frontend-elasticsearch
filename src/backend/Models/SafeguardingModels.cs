@@ -1,5 +1,3 @@
-using System.Text.Json.Nodes;
-
 namespace StudentSearch.Api.Models;
 
 public sealed record SafeguardingQuestion(string Question, bool DebugMode);
@@ -25,7 +23,7 @@ public sealed record RagDebug(
     string EmbeddingModel,
     string CompletionModel,
     int RetrievedCount,
-    JsonNode? KnnQuery,
+    string? KnnQuery,
     string SystemPrompt,
     string UserPrompt,
     string RawCompletion);
