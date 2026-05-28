@@ -1,10 +1,12 @@
-import type { CurrentUser } from '../types';
+import type { UserPreset, UserPresetId } from '../auth/userPresets';
 
 type TopBarProps = {
-  currentUser: CurrentUser | null;
+  presets: UserPreset[];
+  activePresetId: UserPresetId;
+  onPresetChange: (id: UserPresetId) => void;
 };
 
-export function TopBar({ currentUser }: TopBarProps) {
+export function TopBar({ presets, activePresetId, onPresetChange }: TopBarProps) {
   return (
     <header className="topbar">
       <div>
@@ -12,31 +14,22 @@ export function TopBar({ currentUser }: TopBarProps) {
         <p>Search students by name, ID, school, trust, year group, or address.</p>
       </div>
       <div className="topbar-user">
-        {currentUser && (
-          <span className="user-pill" title={formatScopes(currentUser)}>
-            {currentUser.name ?? currentUser.sub}
-          </span>
-        )}
+        <label className="user-switcher">
+          <span className="user-switcher-label">Logged in as</span>
+          <select
+            className="user-switcher-select"
+            value={activePresetId}
+            onChange={(event) => onPresetChange(event.target.value as UserPresetId)}
+            aria-label="Active demo user"
+          >
+            {presets.map((preset) => (
+              <option key={preset.id} value={preset.id}>
+                {preset.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </header>
   );
-}
-
-function formatScopes(currentUser: CurrentUser) {
-  return currentUser.scopes
-    .map((scope) => {
-      switch (scope.type.toLowerCase()) {
-        case 'global':
-          return 'Global access';
-        case 'school':
-          return `School: ${scope.schoolId ?? 'unknown'}`;
-        case 'trust':
-          return `Trust: ${scope.trustId ?? 'unknown'}`;
-        case 'schoolgroup':
-          return `School group: ${scope.schoolGroupId ?? (scope.schoolIds ?? []).join(', ')}`;
-        default:
-          return `${scope.type} scope`;
-      }
-    })
-    .join('\n');
 }

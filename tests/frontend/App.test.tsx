@@ -4,7 +4,8 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/frontend/src/App';
-import type { CurrentUser, SavedSearch, SearchResponse, VersionInfo } from '../../src/frontend/src/types';
+import { ActiveUserProvider } from '../../src/frontend/src/auth/ActiveUserContext';
+import type { SavedSearch, SearchResponse, VersionInfo } from '../../src/frontend/src/types';
 
 const baseResponse: SearchResponse = {
   total: 2,
@@ -89,12 +90,6 @@ const savedSearches: SavedSearch[] = [
   },
 ];
 
-const currentUser: CurrentUser = {
-  sub: 'dev-global-admin',
-  name: 'Global Admin',
-  scopes: [{ type: 'global' }],
-};
-
 const versionInfo: VersionInfo = {
   service: 'StudentSearch.Api',
   version: '1.0.0',
@@ -113,10 +108,6 @@ function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], in
 
     if (url.endsWith('/api/search')) {
       return jsonResponse(searchQueue.shift() ?? searchResponses.at(-1) ?? baseResponse);
-    }
-
-    if (url.endsWith('/api/auth/me')) {
-      return jsonResponse(currentUser);
     }
 
     if (url.endsWith('/version')) {
@@ -164,6 +155,21 @@ async function waitForInitialSearch() {
   await screen.findAllByText('Ava Harrington');
 }
 
+function renderApp() {
+  return render(
+    <ActiveUserProvider>
+      <App />
+    </ActiveUserProvider>,
+  );
+}
+
+function lastAuthHeaderFor(urlSuffix: string) {
+  const calls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith(urlSuffix));
+  const [, init] = calls.at(-1) ?? [];
+  const headers = (init?.headers ?? {}) as Record<string, string>;
+  return headers.Authorization;
+}
+
 function lastSearchRequest() {
   const searchCalls = vi.mocked(fetch).mock.calls.filter(([url]) => String(url).endsWith('/api/search'));
   const [, init] = searchCalls.at(-1)!;
@@ -174,6 +180,7 @@ beforeEach(() => {
   vi.stubGlobal('fetch', vi.fn());
   document.title = 'Student Search POC';
   window.history.replaceState(null, '', '/');
+  window.sessionStorage.clear();
 });
 
 afterEach(() => {
@@ -185,7 +192,7 @@ describe('App', () => {
   it('shows the API version in the page title', async () => {
     installFetchMock();
 
-    render(<App />);
+    renderApp();
 
     await waitFor(() => expect(document.title).toBe('Student Search POC v1.0.0'));
   });
@@ -193,12 +200,11 @@ describe('App', () => {
   it('renders search results and student details returned by the API', async () => {
     installFetchMock();
 
-    render(<App />);
+    renderApp();
 
     await waitForInitialSearch();
 
     expect(screen.getByText('2 students found')).toBeInTheDocument();
-    expect(screen.getByText('Global Admin')).toHaveAttribute('title', 'Global access');
     expect(screen.getAllByText('Westbrook College').length).toBeGreaterThan(0);
     expect(screen.getByRole('heading', { name: 'Ava Harrington' })).toBeInTheDocument();
     expect(screen.getAllByText('North Learning Trust').length).toBeGreaterThan(0);
@@ -219,7 +225,7 @@ describe('App', () => {
       },
     ]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     await user.type(screen.getByPlaceholderText(/search anything/i), 'West');
@@ -254,7 +260,7 @@ describe('App', () => {
       },
     ]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     const filtersPanel = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
@@ -281,7 +287,7 @@ describe('App', () => {
       },
     ]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     const filtersPanel = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
@@ -298,28 +304,29 @@ describe('App', () => {
           yearGroup: {
             ...baseResponse.facets.yearGroup,
             options: [
-              { value: 'Year 10', label: 'Year 10', count: 1, selected: false },
-              { value: 'Year 11', label: 'Year 11', count: 1, selected: false },
-              { value: 'Year 8', label: 'Year 8', count: 1, selected: false },
+              { value: 'Year 2', label: 'Year 2', count: 1, selected: false },
+              { value: 'Year 6', label: 'Year 6', count: 1, selected: false },
+              { value: 'Reception', label: 'Reception', count: 1, selected: false },
+              { value: 'Year 1', label: 'Year 1', count: 1, selected: false },
             ],
           },
         },
       },
     ]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     const yearGroup = screen.getByRole('heading', { name: 'Year group' }).closest('section')!;
     const options = Array.from(yearGroup.querySelectorAll('label span')).map((option) => option.textContent);
-    expect(options).toEqual(['Year 8', 'Year 10', 'Year 11']);
+    expect(options).toEqual(['Reception', 'Year 1', 'Year 2', 'Year 6']);
   });
 
   it('initializes the active search from query string parameters', async () => {
     window.history.replaceState(null, '', '/?q=West&page=2&school=westbrook+college&yearGroup=Year+9');
     installFetchMock();
 
-    render(<App />);
+    renderApp();
 
     await waitForInitialSearch();
 
@@ -339,7 +346,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock([baseResponse, baseResponse, baseResponse]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     await user.type(screen.getByPlaceholderText(/search anything/i), 'West');
@@ -359,7 +366,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock([baseResponse, baseResponse]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     const avaCard = screen.getByLabelText('Student result Ava Harrington');
@@ -375,7 +382,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock([baseResponse, baseResponse]);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     const detailPanel = screen.getByRole('heading', { name: 'Student detail' }).closest('aside')!;
@@ -391,7 +398,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock();
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     expect(screen.queryByRole('heading', { name: 'Debug Mode' })).not.toBeInTheDocument();
@@ -407,7 +414,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock();
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     await user.type(screen.getByPlaceholderText(/name this search/i), 'Westbrook current');
@@ -428,7 +435,7 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock([baseResponse, baseResponse], savedSearches);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     await user.click(screen.getByRole('button', { name: /apply saved search westbrook saved/i }));
@@ -446,13 +453,32 @@ describe('App', () => {
     const user = userEvent.setup();
     installFetchMock([baseResponse], savedSearches);
 
-    render(<App />);
+    renderApp();
     await waitForInitialSearch();
 
     await user.click(screen.getByRole('button', { name: /delete saved search westbrook saved/i }));
 
     await waitFor(() => {
       expect(screen.queryByText('Westbrook saved')).not.toBeInTheDocument();
+    });
+  });
+
+  it('switches the active user when the dropdown changes and sends a new auth token', async () => {
+    const user = userEvent.setup();
+    installFetchMock();
+
+    renderApp();
+    await waitForInitialSearch();
+
+    const initialAuth = lastAuthHeaderFor('/api/search');
+    expect(initialAuth).toMatch(/^Bearer /);
+
+    await user.selectOptions(screen.getByLabelText('Active demo user'), 'global');
+
+    await waitFor(() => {
+      const next = lastAuthHeaderFor('/api/search');
+      expect(next).toMatch(/^Bearer /);
+      expect(next).not.toBe(initialAuth);
     });
   });
 });

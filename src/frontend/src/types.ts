@@ -86,12 +86,6 @@ export type AuthorizationScope = {
   schoolIds?: string[];
 };
 
-export type CurrentUser = {
-  sub: string;
-  name?: string;
-  scopes: AuthorizationScope[];
-};
-
 export type VersionInfo = {
   service: string;
   version: string;

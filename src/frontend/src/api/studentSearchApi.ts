@@ -1,20 +1,22 @@
-import type { CurrentUser, SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
+import { DEFAULT_PRESET_ID, findPreset, type UserPresetToken } from '../auth/userPresets';
+import type { SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
 
 const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
-const DEV_ACCESS_TOKEN = encodeDevAccessToken({
-  sub: 'dev-kingfisher-academy',
-  name: 'Kingfisher Academy',
-  scopes: [{ type: 'school', schoolId: 'SCH-KINGFISHER' }],
-});
 
-const authHeaders = {
-  Authorization: `Bearer ${DEV_ACCESS_TOKEN}`,
-};
+let activeDevToken = encodeDevAccessToken(findPreset(DEFAULT_PRESET_ID)!.token);
+
+export function setActiveDevToken(payload: UserPresetToken) {
+  activeDevToken = encodeDevAccessToken(payload);
+}
+
+function authHeaders(): HeadersInit {
+  return { Authorization: `Bearer ${activeDevToken}` };
+}
 
 export async function searchStudents(request: SearchRequest, signal: AbortSignal) {
   const response = await fetch(`${API_BASE}/api/search`, {
     method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
     signal,
   });
@@ -27,7 +29,7 @@ export async function searchStudents(request: SearchRequest, signal: AbortSignal
 }
 
 export async function reindexStudents() {
-  const response = await fetch(`${API_BASE}/api/admin/reindex`, { method: 'POST', headers: authHeaders });
+  const response = await fetch(`${API_BASE}/api/admin/reindex`, { method: 'POST', headers: authHeaders() });
 
   if (!response.ok) {
     throw new Error(await response.text());
@@ -35,7 +37,7 @@ export async function reindexStudents() {
 }
 
 export async function listSavedSearches() {
-  const response = await fetch(`${API_BASE}/api/saved-searches`, { headers: authHeaders });
+  const response = await fetch(`${API_BASE}/api/saved-searches`, { headers: authHeaders() });
 
   if (!response.ok) {
     throw new Error(await response.text());
@@ -47,7 +49,7 @@ export async function listSavedSearches() {
 export async function saveSearch(request: SaveSearchRequest) {
   const response = await fetch(`${API_BASE}/api/saved-searches`, {
     method: 'POST',
-    headers: { ...authHeaders, 'Content-Type': 'application/json' },
+    headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify(request),
   });
 
@@ -59,21 +61,11 @@ export async function saveSearch(request: SaveSearchRequest) {
 }
 
 export async function deleteSavedSearch(id: string) {
-  const response = await fetch(`${API_BASE}/api/saved-searches/${id}`, { method: 'DELETE', headers: authHeaders });
+  const response = await fetch(`${API_BASE}/api/saved-searches/${id}`, { method: 'DELETE', headers: authHeaders() });
 
   if (!response.ok) {
     throw new Error(await response.text());
   }
-}
-
-export async function getCurrentUser() {
-  const response = await fetch(`${API_BASE}/api/auth/me`, { headers: authHeaders });
-
-  if (!response.ok) {
-    throw new Error(await response.text());
-  }
-
-  return response.json() as Promise<CurrentUser>;
 }
 
 export async function getVersionInfo() {
@@ -86,7 +78,7 @@ export async function getVersionInfo() {
   return response.json() as Promise<VersionInfo>;
 }
 
-function encodeDevAccessToken(payload: { sub: string; name: string; scopes: Array<Record<string, string>> }) {
+function encodeDevAccessToken(payload: UserPresetToken) {
   const json = JSON.stringify(payload);
   const bytes = new TextEncoder().encode(json);
   let binary = '';

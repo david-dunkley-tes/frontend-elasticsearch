@@ -1,6 +1,8 @@
 import React from 'react';
 import { Bug, Database } from 'lucide-react';
-import { deleteSavedSearch, getCurrentUser, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { useActiveUser } from './auth/ActiveUserContext';
+import { USER_PRESETS, type UserPresetId } from './auth/userPresets';
 import { DebugPanel } from './components/DebugPanel';
 import { FacetGroup } from './components/FacetGroup';
 import { ResultsPanel } from './components/ResultsPanel';
@@ -9,7 +11,7 @@ import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
-import type { CurrentUser, Facet, Filters, SavedSearch, SearchResponse } from './types';
+import type { Facet, Filters, SavedSearch, SearchResponse } from './types';
 
 const reservedSearchParams = new Set(['q', 'page']);
 
@@ -20,6 +22,7 @@ type UrlSearchState = {
 };
 
 export function App() {
+  const { presetId, setPresetId } = useActiveUser();
   const initialSearchState = React.useMemo(() => readSearchStateFromUrl(), []);
   const [query, setQuery] = React.useState(initialSearchState.query);
   const [filters, setFilters] = React.useState<Filters>(initialSearchState.filters);
@@ -27,7 +30,6 @@ export function App() {
   const [debugMode, setDebugMode] = React.useState(false);
   const [response, setResponse] = React.useState<SearchResponse | null>(null);
   const [selectedId, setSelectedId] = React.useState<string | null>(null);
-  const [currentUser, setCurrentUser] = React.useState<CurrentUser | null>(null);
   const [savedSearches, setSavedSearches] = React.useState<SavedSearch[]>([]);
   const [saveName, setSaveName] = React.useState('');
   const [loading, setLoading] = React.useState(false);
@@ -76,17 +78,15 @@ export function App() {
       .finally(() => setLoading(false));
 
     return () => controller.abort();
-  }, [requestPayload]);
+  }, [requestPayload, presetId]);
 
   React.useEffect(() => {
-    getCurrentUser()
-      .then(setCurrentUser)
-      .catch((err: Error) => setError(err.message));
+    setSavedSearches([]);
 
     listSavedSearches()
       .then(setSavedSearches)
       .catch((err: Error) => setError(err.message));
-  }, []);
+  }, [presetId]);
 
   React.useEffect(() => {
     let active = true;
@@ -201,10 +201,22 @@ export function App() {
     }
   }
 
+  function changePreset(next: UserPresetId) {
+    if (next === presetId) {
+      return;
+    }
+    setPresetId(next);
+    setPage(1);
+    setSelectedId(null);
+    setResponse(null);
+  }
+
   return (
     <main className="app-shell">
       <TopBar
-        currentUser={currentUser}
+        presets={USER_PRESETS}
+        activePresetId={presetId}
+        onPresetChange={changePreset}
       />
       <SearchBox query={query} onChange={updateQuery} />
       <SelectedFilters filters={filters} response={response} onClear={clearFilter} />
@@ -297,7 +309,11 @@ function compareYearGroupLabels(left: string, right: string) {
 }
 
 function readYearNumber(label: string) {
-  const match = /^Year\s+(\d+)$/i.exec(label.trim());
+  const trimmed = label.trim();
+  if (/^reception$/i.test(trimmed)) {
+    return 0;
+  }
+  const match = /^Year\s+(\d+)$/i.exec(trimmed);
   return match ? Number.parseInt(match[1], 10) : null;
 }
 

@@ -49,14 +49,27 @@ input {
   justify-content: flex-end;
 }
 
-.user-pill {
-  border: 1px solid #c7d0dc;
-  border-radius: 999px;
-  background: #eef6f8;
-  color: #245f69;
+.user-switcher {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   font-size: 13px;
-  font-weight: 700;
-  padding: 8px 12px;
+  color: #586576;
+}
+
+.user-switcher-label {
+  font-weight: 600;
+}
+
+.user-switcher-select {
+  border: 1px solid #c7d0dc;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #25313f;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 6px 10px;
+  cursor: pointer;
 }
 
 .icon-button,
