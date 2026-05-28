@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Services;
 
 namespace StudentSearch.Api.Controllers;

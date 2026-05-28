@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using StudentSearch.Api.Configuration;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Services;

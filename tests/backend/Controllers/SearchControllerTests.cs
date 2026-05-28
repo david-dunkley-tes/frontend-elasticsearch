@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
 using StudentSearch.Api.Controllers;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Models;
 using StudentSearch.Api.Services;
 

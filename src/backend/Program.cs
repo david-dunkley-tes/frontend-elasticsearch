@@ -8,6 +8,7 @@ using StudentSearch.Api.Infrastructure;
 using StudentSearch.Api.Infrastructure.Anthropic;
 using StudentSearch.Api.Infrastructure.Elasticsearch;
 using StudentSearch.Api.Infrastructure.Voyage;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Services;
 
 var builder = WebApplication.CreateBuilder(args);

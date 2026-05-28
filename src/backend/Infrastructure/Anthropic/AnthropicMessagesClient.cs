@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using StudentSearch.Api.Configuration;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Services;
 
 namespace StudentSearch.Api.Infrastructure.Anthropic;

@@ -1,4 +1,4 @@
-namespace StudentSearch.Api.Services;
+namespace StudentSearch.Api.Interfaces;
 
 public interface IEmbeddingClient
 {

@@ -2,6 +2,7 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.FileProviders;
 using StudentSearch.Api.Controllers;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Models;
 using StudentSearch.Api.Services;
 

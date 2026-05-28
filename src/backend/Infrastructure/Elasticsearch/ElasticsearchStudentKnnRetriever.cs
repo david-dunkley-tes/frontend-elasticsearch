@@ -1,6 +1,7 @@
 using System.Text.Json;
 using System.Text.Json.Nodes;
 using StudentSearch.Api.Configuration;
+using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Models;
 using StudentSearch.Api.Services;
 

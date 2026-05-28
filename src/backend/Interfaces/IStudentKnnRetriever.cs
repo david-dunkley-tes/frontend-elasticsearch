@@ -1,7 +1,7 @@
 using System.Text.Json.Nodes;
 using StudentSearch.Api.Models;
 
-namespace StudentSearch.Api.Services;
+namespace StudentSearch.Api.Interfaces;
 
 public sealed record KnnHit(StudentRecord Record, double Score);
 

@@ -1,8 +1,8 @@
 using StudentSearch.Api.Models;
 
-namespace StudentSearch.Api.Services;
+namespace StudentSearch.Api.Interfaces;
 
-public interface IReindexService
+public interface IStudentIndexSeeder
 {
     Task<ReindexResponse> ReindexAsync();
 }
