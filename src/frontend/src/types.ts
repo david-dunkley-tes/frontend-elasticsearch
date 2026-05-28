@@ -93,7 +93,7 @@ export type AuthorizationScope = {
   schoolIds?: string[];
 };
 
-export type RagSource = {
+export type SafeguardingSource = {
   studentId: string;
   fullName: string;
   yearGroup: string;
@@ -116,14 +116,14 @@ export type RagDebug = {
   rawCompletion: string;
 };
 
-export type RagAnswer = {
+export type SafeguardingAnswer = {
   answer: string;
-  sources: RagSource[];
+  sources: SafeguardingSource[];
   debug?: RagDebug | null;
 };
 
-export type RagHealth = {
-  enabled: boolean;
+export type SafeguardingAvailability = {
+  available: boolean;
   reason?: string | null;
 };
 

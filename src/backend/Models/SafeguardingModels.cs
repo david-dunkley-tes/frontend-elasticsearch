@@ -2,14 +2,14 @@ using System.Text.Json.Nodes;
 
 namespace StudentSearch.Api.Models;
 
-public sealed record RagRequest(string Question, bool DebugMode);
+public sealed record SafeguardingQuestion(string Question, bool DebugMode);
 
-public sealed record RagAnswer(
+public sealed record SafeguardingAnswer(
     string Answer,
-    IReadOnlyList<RagSource> Sources,
+    IReadOnlyList<SafeguardingSource> Sources,
     RagDebug? Debug);
 
-public sealed record RagSource(
+public sealed record SafeguardingSource(
     string StudentId,
     string FullName,
     string YearGroup,
@@ -30,4 +30,4 @@ public sealed record RagDebug(
     string UserPrompt,
     string RawCompletion);
 
-public sealed record RagHealth(bool Enabled, string? Reason);
+public sealed record SafeguardingAvailability(bool Available, string? Reason);

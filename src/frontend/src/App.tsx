@@ -1,6 +1,6 @@
 import React from 'react';
 import { Bug, Database } from 'lucide-react';
-import { deleteSavedSearch, getAskHealth, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
+import { deleteSavedSearch, getSafeguardingAvailability, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { useActiveUser } from './auth/ActiveUserContext';
 import { USER_PRESETS, type UserPresetId } from './auth/userPresets';
 import { AskPanel } from './components/AskPanel';
@@ -13,7 +13,7 @@ import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
-import type { Facet, Filters, RagAnswer, RagSource, SavedSearch, SearchResponse } from './types';
+import type { Facet, Filters, SafeguardingAnswer, SafeguardingSource, SavedSearch, SearchResponse } from './types';
 
 const reservedSearchParams = new Set(['q', 'page']);
 
@@ -38,8 +38,8 @@ export function App() {
   const [savingSearch, setSavingSearch] = React.useState(false);
   const [reindexing, setReindexing] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [ragHealth, setRagHealth] = React.useState<{ enabled: boolean; reason: string | null }>({ enabled: false, reason: null });
-  const [ragAnswer, setRagAnswer] = React.useState<RagAnswer | null>(null);
+  const [availability, setAvailability] = React.useState<{ available: boolean; reason: string | null }>({ available: false, reason: null });
+  const [safeguardingAnswer, setSafeguardingAnswer] = React.useState<SafeguardingAnswer | null>(null);
   const pageSize = 10;
 
   const requestPayload = React.useMemo(
@@ -86,15 +86,15 @@ export function App() {
 
   React.useEffect(() => {
     setSavedSearches([]);
-    setRagAnswer(null);
+    setSafeguardingAnswer(null);
 
     listSavedSearches()
       .then(setSavedSearches)
       .catch((err: Error) => setError(err.message));
 
-    getAskHealth()
-      .then((health) => setRagHealth({ enabled: health.enabled, reason: health.reason ?? null }))
-      .catch(() => setRagHealth({ enabled: false, reason: 'Ask health check failed' }));
+    getSafeguardingAvailability()
+      .then((next) => setAvailability({ available: next.available, reason: next.reason ?? null }))
+      .catch(() => setAvailability({ available: false, reason: 'Safeguarding availability check failed' }));
   }, [presetId]);
 
   React.useEffect(() => {
@@ -220,7 +220,7 @@ export function App() {
     setResponse(null);
   }
 
-  function handleSourceClick(source: RagSource) {
+  function handleSourceClick(source: SafeguardingSource) {
     setQuery(source.studentId);
     setFilters({});
     setPage(1);
@@ -238,10 +238,10 @@ export function App() {
       <SearchBox query={query} onChange={updateQuery} />
       <SelectedFilters filters={filters} response={response} onClear={clearFilter} />
       <AskPanel
-        enabled={ragHealth.enabled}
-        disabledReason={ragHealth.reason}
+        enabled={availability.available}
+        disabledReason={availability.reason}
         debugMode={debugMode}
-        onAnswerChange={setRagAnswer}
+        onAnswerChange={setSafeguardingAnswer}
         onSourceClick={handleSourceClick}
       />
 
@@ -285,7 +285,7 @@ export function App() {
         </aside>
       </section>
 
-      {debugMode && <DebugPanel error={error} loading={loading} request={requestPayload} response={response} ragAnswer={ragAnswer} />}
+      {debugMode && <DebugPanel error={error} loading={loading} request={requestPayload} response={response} safeguardingAnswer={safeguardingAnswer} />}
 
       <footer className="page-footer">
         <button className="icon-button" onClick={reindex} disabled={reindexing} title="Reindex seed data">

@@ -7,34 +7,34 @@ using StudentSearch.Api.Services;
 namespace StudentSearch.Api.Controllers;
 
 [ApiController]
-[Route("api/ask")]
-public sealed class RagController(
+[Route("api/safeguarding")]
+public sealed class SafeguardingController(
     RagConfiguration ragConfiguration,
-    IRagService ragService,
+    ISafeguardingService safeguardingService,
     IAuthorizationScopeResolver authorizationScopeResolver) : ControllerBase
 {
-    [HttpGet("health")]
-    public ActionResult<RagHealth> Health()
+    [HttpGet("availability")]
+    public ActionResult<SafeguardingAvailability> Availability()
     {
         var reason = ragConfiguration.IsEnabled ? null : ragConfiguration.DisabledReason;
-        return Ok(new RagHealth(ragConfiguration.IsEnabled, reason));
+        return Ok(new SafeguardingAvailability(ragConfiguration.IsEnabled, reason));
     }
 
     [HttpPost]
-    public async Task<ActionResult<RagAnswer>> Ask(RagRequest request, CancellationToken cancellationToken)
+    public async Task<ActionResult<SafeguardingAnswer>> Ask(SafeguardingQuestion request, CancellationToken cancellationToken)
     {
         if (!ragConfiguration.IsEnabled)
         {
             return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails
             {
                 Status = StatusCodes.Status503ServiceUnavailable,
-                Title = "AI Ask is not configured",
+                Title = "Safeguarding ask is not available",
                 Detail = ragConfiguration.DisabledReason,
             });
         }
 
         var authorizationScope = await authorizationScopeResolver.ResolveAsync(User);
-        var answer = await ragService.AskAsync(request, authorizationScope, cancellationToken);
+        var answer = await safeguardingService.AskAsync(request, authorizationScope, cancellationToken);
         return Ok(answer);
     }
 }

@@ -64,7 +64,7 @@ builder.Services.AddSingleton<IElasticsearchGateway, ElasticsearchGateway>();
 builder.Services.AddSingleton<IVersionInfoProvider, VersionInfoProvider>();
 builder.Services.AddScoped<IStudentKnnRetriever, ElasticsearchStudentKnnRetriever>();
 builder.Services.AddSingleton<INarrativeRedactor, NarrativeRedactor>();
-builder.Services.AddScoped<IRagService, RagService>();
+builder.Services.AddScoped<ISafeguardingService, SafeguardingService>();
 builder.Services.AddHttpClient<IEmbeddingClient, VoyageEmbeddingClient>(client =>
 {
     client.BaseAddress = new Uri("https://api.voyageai.com/");

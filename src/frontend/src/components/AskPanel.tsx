@@ -1,22 +1,22 @@
 import React from 'react';
 import { Sparkles } from 'lucide-react';
-import { askStudents } from '../api/studentSearchApi';
+import { askSafeguarding } from '../api/studentSearchApi';
 import { formatCategoryLabel } from '../format';
-import type { RagAnswer, RagSource } from '../types';
+import type { SafeguardingAnswer, SafeguardingSource } from '../types';
 
 type AskPanelProps = {
   enabled: boolean;
   disabledReason: string | null;
   debugMode: boolean;
-  onAnswerChange: (answer: RagAnswer | null) => void;
-  onSourceClick: (source: RagSource) => void;
+  onAnswerChange: (answer: SafeguardingAnswer | null) => void;
+  onSourceClick: (source: SafeguardingSource) => void;
 };
 
 export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, onSourceClick }: AskPanelProps) {
   const [question, setQuestion] = React.useState('');
   const [pending, setPending] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [answer, setAnswer] = React.useState<RagAnswer | null>(null);
+  const [answer, setAnswer] = React.useState<SafeguardingAnswer | null>(null);
 
   React.useEffect(() => {
     onAnswerChange(answer);
@@ -32,7 +32,7 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
     setPending(true);
     setError(null);
     try {
-      const next = await askStudents(trimmed, debugMode);
+      const next = await askSafeguarding(trimmed, debugMode);
       setAnswer(next);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Ask failed');
@@ -103,7 +103,7 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
   );
 }
 
-function selectSourcesToShow(answer: RagAnswer): RagSource[] {
+function selectSourcesToShow(answer: SafeguardingAnswer): SafeguardingSource[] {
   const citedIds = new Set(Array.from(answer.answer.matchAll(/\[(S\d+)\]/g), (match) => match[1]));
   if (citedIds.size === 0) {
     return answer.sources;

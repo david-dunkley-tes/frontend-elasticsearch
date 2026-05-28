@@ -1,5 +1,5 @@
 import { DEFAULT_PRESET_ID, findPreset, type UserPresetToken } from '../auth/userPresets';
-import type { RagAnswer, RagHealth, SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
+import type { SafeguardingAnswer, SafeguardingAvailability, SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
 
 const API_BASE = import.meta.env.VITE_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:5000`;
 
@@ -68,8 +68,8 @@ export async function deleteSavedSearch(id: string) {
   }
 }
 
-export async function askStudents(question: string, debugMode: boolean) {
-  const response = await fetch(`${API_BASE}/api/ask`, {
+export async function askSafeguarding(question: string, debugMode: boolean) {
+  const response = await fetch(`${API_BASE}/api/safeguarding`, {
     method: 'POST',
     headers: { ...authHeaders(), 'Content-Type': 'application/json' },
     body: JSON.stringify({ question, debugMode }),
@@ -79,17 +79,17 @@ export async function askStudents(question: string, debugMode: boolean) {
     throw new Error(await response.text());
   }
 
-  return response.json() as Promise<RagAnswer>;
+  return response.json() as Promise<SafeguardingAnswer>;
 }
 
-export async function getAskHealth() {
-  const response = await fetch(`${API_BASE}/api/ask/health`, { headers: authHeaders() });
+export async function getSafeguardingAvailability() {
+  const response = await fetch(`${API_BASE}/api/safeguarding/availability`, { headers: authHeaders() });
 
   if (!response.ok) {
     throw new Error(await response.text());
   }
 
-  return response.json() as Promise<RagHealth>;
+  return response.json() as Promise<SafeguardingAvailability>;
 }
 
 export async function getVersionInfo() {

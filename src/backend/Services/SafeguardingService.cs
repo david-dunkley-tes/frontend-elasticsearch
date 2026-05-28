@@ -5,11 +5,11 @@ using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Services;
 
-public sealed class RagService(
+public sealed class SafeguardingService(
     RagConfiguration configuration,
     IEmbeddingClient embeddingClient,
     IStudentKnnRetriever knnRetriever,
-    IAnthropicClient anthropicClient) : IRagService
+    IAnthropicClient anthropicClient) : ISafeguardingService
 {
     private const string SystemPromptTemplate = """
         You are a safeguarding assistant for a UK primary-school MAT. Today's date is {0}; use
@@ -23,7 +23,7 @@ public sealed class RagService(
         Keep answers concise (2-5 sentences) unless asked for more detail.
         """;
 
-    public async Task<RagAnswer> AskAsync(RagRequest request, AuthorizedSchoolScope authorizationScope, CancellationToken cancellationToken = default)
+    public async Task<SafeguardingAnswer> AskAsync(SafeguardingQuestion request, AuthorizedSchoolScope authorizationScope, CancellationToken cancellationToken = default)
     {
         if (!configuration.IsEnabled)
         {
@@ -43,7 +43,7 @@ public sealed class RagService(
 
         var sources = knn.Hits
             .Where(hit => hit.Record.SafeguardingLog is not null)
-            .Select(hit => new RagSource(
+            .Select(hit => new SafeguardingSource(
                 hit.Record.Student.Id,
                 hit.Record.Student.FullName,
                 hit.Record.Student.YearGroup,
@@ -86,7 +86,7 @@ public sealed class RagService(
                 completion.Text)
             : null;
 
-        return new RagAnswer(completion.Text, sources, debug);
+        return new SafeguardingAnswer(completion.Text, sources, debug);
     }
 
     private static string BuildUserPrompt(string question, IReadOnlyList<RedactedRecord> records)

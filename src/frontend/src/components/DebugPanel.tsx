@@ -1,15 +1,15 @@
 import { RefreshCw } from 'lucide-react';
-import type { RagAnswer, SearchRequest, SearchResponse } from '../types';
+import type { SafeguardingAnswer, SearchRequest, SearchResponse } from '../types';
 
 type DebugPanelProps = {
   error: string | null;
   loading: boolean;
   request: SearchRequest;
   response: SearchResponse | null;
-  ragAnswer: RagAnswer | null;
+  safeguardingAnswer: SafeguardingAnswer | null;
 };
 
-export function DebugPanel({ error, loading, request, response, ragAnswer }: DebugPanelProps) {
+export function DebugPanel({ error, loading, request, response, safeguardingAnswer }: DebugPanelProps) {
   return (
     <section className="debug-panel">
       <div className="debug-header">
@@ -19,7 +19,7 @@ export function DebugPanel({ error, loading, request, response, ragAnswer }: Deb
       {error && <pre>{error}</pre>}
       <h3>Search request / response</h3>
       <pre>{JSON.stringify({ request, response }, null, 2)}</pre>
-      {ragAnswer?.debug && (
+      {safeguardingAnswer?.debug && (
         <>
           <h3>LLM call</h3>
           <p className="debug-note">
@@ -27,20 +27,20 @@ export function DebugPanel({ error, loading, request, response, ragAnswer }: Deb
           </p>
           <dl className="debug-llm-meta">
             <dt>Embedding model</dt>
-            <dd>{ragAnswer.debug.embeddingModel}</dd>
+            <dd>{safeguardingAnswer.debug.embeddingModel}</dd>
             <dt>Completion model</dt>
-            <dd>{ragAnswer.debug.completionModel}</dd>
+            <dd>{safeguardingAnswer.debug.completionModel}</dd>
             <dt>Retrieved records</dt>
-            <dd>{ragAnswer.debug.retrievedCount}</dd>
+            <dd>{safeguardingAnswer.debug.retrievedCount}</dd>
           </dl>
           <h4>System prompt</h4>
-          <pre>{ragAnswer.debug.systemPrompt}</pre>
+          <pre>{safeguardingAnswer.debug.systemPrompt}</pre>
           <h4>User prompt</h4>
-          <pre>{ragAnswer.debug.userPrompt}</pre>
+          <pre>{safeguardingAnswer.debug.userPrompt}</pre>
           <h4>Raw completion</h4>
-          <pre>{ragAnswer.debug.rawCompletion}</pre>
+          <pre>{safeguardingAnswer.debug.rawCompletion}</pre>
           <h4>kNN query (Elasticsearch)</h4>
-          <pre>{JSON.stringify(ragAnswer.debug.knnQuery, null, 2)}</pre>
+          <pre>{JSON.stringify(safeguardingAnswer.debug.knnQuery, null, 2)}</pre>
         </>
       )}
     </section>
