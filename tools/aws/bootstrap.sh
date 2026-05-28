@@ -51,9 +51,17 @@ MY_IP="$(curl -fsS https://checkip.amazonaws.com)"
 echo "Your public IP: ${MY_IP}"
 
 echo "Resolving latest Ubuntu 24.04 LTS AMI in ${REGION}..."
-AMI_ID="$(aws ssm get-parameter --region "${REGION}" \
-  --name /aws/service/canonical/ubuntu/server/24.04/stable/current/amd64/hvm/ebs-gp3/ami-id \
-  --query 'Parameter.Value' --output text)"
+AMI_ID="$(aws ec2 describe-images --region "${REGION}" \
+  --owners 099720109477 \
+  --filters \
+    'Name=name,Values=ubuntu/images/hvm-ssd-gp3/ubuntu-noble-24.04-amd64-server-*' \
+    'Name=state,Values=available' \
+    'Name=architecture,Values=x86_64' \
+  --query 'sort_by(Images, &CreationDate) | [-1].ImageId' --output text)"
+if [ -z "${AMI_ID}" ] || [ "${AMI_ID}" = "None" ]; then
+  echo "ERROR: could not resolve an Ubuntu 24.04 LTS AMI in ${REGION}." >&2
+  exit 1
+fi
 echo "AMI: ${AMI_ID}"
 
 VPC_ID="$(aws ec2 describe-vpcs --region "${REGION}" \
