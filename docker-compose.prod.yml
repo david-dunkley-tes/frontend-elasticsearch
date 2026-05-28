@@ -1,0 +1,20 @@
+services:
+  backend:
+    ports: !reset []
+    restart: unless-stopped
+
+  elasticsearch:
+    ports: !reset []
+    restart: unless-stopped
+
+  caddy:
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+    container_name: student-search-caddy
+    ports:
+      - "80:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped

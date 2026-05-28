@@ -1,0 +1,25 @@
+:80 {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy backend:5000
+	}
+
+	handle /health/* {
+		reverse_proxy backend:5000
+	}
+
+	handle /version {
+		reverse_proxy backend:5000
+	}
+
+	handle /swagger* {
+		reverse_proxy backend:5000
+	}
+
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

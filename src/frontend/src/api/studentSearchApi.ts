@@ -1,7 +1,7 @@
 import { DEFAULT_PRESET_ID, findPreset, type UserPresetToken } from '../auth/userPresets';
 import type { SavedSearch, SaveSearchRequest, SearchRequest, SearchResponse, VersionInfo } from '../types';
 
-const API_BASE = `${window.location.protocol}//${window.location.hostname}:5000`;
+const API_BASE = import.meta.env.VITE_API_BASE ?? `${window.location.protocol}//${window.location.hostname}:5000`;
 
 let activeDevToken = encodeDevAccessToken(findPreset(DEFAULT_PRESET_ID)!.token);
 

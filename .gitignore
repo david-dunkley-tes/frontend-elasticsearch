@@ -11,3 +11,5 @@ dist/
 data/saved-searches.json
 .chrome-preview/
 student-card-preview.png
+tools/aws/.instance-id
+tools/aws/*.pem
