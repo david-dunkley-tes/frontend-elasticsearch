@@ -9,11 +9,6 @@
 #   tools/aws/bootstrap.sh --repo-url URL # override
 set -euo pipefail
 
-# Stop Git Bash / MSYS from translating arguments that start with "/" into
-# Windows paths (it mangles things like /dev/sda1 → C:/Program Files/Git/dev/sda1).
-# We do explicit cygpath conversion below for paths that genuinely need it.
-export MSYS_NO_PATHCONV=1
-
 REGION="eu-west-2"
 NAME="student-search-demo"
 INSTANCE_TYPE="t3.medium"
@@ -116,7 +111,10 @@ else
 fi
 
 echo "Launching ${INSTANCE_TYPE} instance..."
-INSTANCE_ID="$(aws ec2 run-instances --region "${REGION}" \
+# MSYS_NO_PATHCONV=1 stops Git Bash from rewriting /dev/sda1 into a Windows
+# path before aws.exe sees it. Scoped to this command so it doesn't interfere
+# with git.exe, which relies on the conversion for /c/... paths.
+INSTANCE_ID="$(MSYS_NO_PATHCONV=1 aws ec2 run-instances --region "${REGION}" \
   --image-id "${AMI_ID}" \
   --instance-type "${INSTANCE_TYPE}" \
   --key-name "${NAME}" \
