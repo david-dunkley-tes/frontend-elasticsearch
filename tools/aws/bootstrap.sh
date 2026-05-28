@@ -17,7 +17,7 @@ HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 INSTANCE_ID_FILE="${HERE}/.instance-id"
 KEY_FILE="${HERE}/${NAME}.pem"
 USER_DATA_TEMPLATE="${HERE}/user-data.sh"
-USER_DATA_RENDERED="$(mktemp)"
+USER_DATA_RENDERED="${HERE}/.user-data.rendered.sh"
 trap 'rm -f "${USER_DATA_RENDERED}"' EXIT
 
 REPO_URL=""
@@ -102,6 +102,14 @@ fi
 
 sed "s|__REPO_URL__|${REPO_URL}|g" "${USER_DATA_TEMPLATE}" > "${USER_DATA_RENDERED}"
 
+# Native aws.exe on Windows doesn't understand Git Bash POSIX paths like
+# /c/Users/... — convert to a Windows-style path when cygpath is around.
+if command -v cygpath >/dev/null 2>&1; then
+  USER_DATA_FILEARG="file://$(cygpath -w "${USER_DATA_RENDERED}")"
+else
+  USER_DATA_FILEARG="file://${USER_DATA_RENDERED}"
+fi
+
 echo "Launching ${INSTANCE_TYPE} instance..."
 INSTANCE_ID="$(aws ec2 run-instances --region "${REGION}" \
   --image-id "${AMI_ID}" \
@@ -109,7 +117,7 @@ INSTANCE_ID="$(aws ec2 run-instances --region "${REGION}" \
   --key-name "${NAME}" \
   --security-group-ids "${SG_ID}" \
   --block-device-mappings "DeviceName=/dev/sda1,Ebs={VolumeSize=${ROOT_VOL_GIB},VolumeType=gp3,DeleteOnTermination=true}" \
-  --user-data "file://${USER_DATA_RENDERED}" \
+  --user-data "${USER_DATA_FILEARG}" \
   --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=${NAME}}]" \
   --query 'Instances[0].InstanceId' --output text)"
 
