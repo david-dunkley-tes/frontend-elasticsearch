@@ -7,7 +7,7 @@ set -euxo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
 apt-get update
-apt-get install -y docker.io docker-compose-plugin git curl ca-certificates
+apt-get install -y docker.io docker-compose-v2 git curl ca-certificates
 systemctl enable --now docker
 
 if [ ! -d /opt/student-search ]; then
