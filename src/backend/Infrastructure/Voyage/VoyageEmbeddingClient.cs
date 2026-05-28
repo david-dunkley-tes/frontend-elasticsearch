@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using StudentSearch.Api.Configuration;
 using StudentSearch.Api.Interfaces;
@@ -21,7 +20,7 @@ public sealed class VoyageEmbeddingClient(HttpClient httpClient, RagConfiguratio
         var request = new VoyageEmbedRequest(configuration.EmbeddingModel, texts, inputType);
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, EmbeddingsPath)
         {
-            Content = JsonContent.Create(request, options: JsonOptions),
+            Content = JsonContent.Create(request, options: JsonDefaults.WebIgnoreNullsOnWrite),
         };
         httpRequest.Headers.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", configuration.VoyageApiKey);
 
@@ -32,16 +31,11 @@ public sealed class VoyageEmbeddingClient(HttpClient httpClient, RagConfiguratio
             throw new InvalidOperationException($"Voyage embeddings failed with {(int)response.StatusCode}: {body}");
         }
 
-        var parsed = await response.Content.ReadFromJsonAsync<VoyageEmbedResponse>(JsonOptions, cancellationToken)
+        var parsed = await response.Content.ReadFromJsonAsync<VoyageEmbedResponse>(JsonDefaults.WebIgnoreNullsOnWrite, cancellationToken)
             ?? throw new InvalidOperationException("Voyage returned an empty embeddings body.");
 
         return parsed.Data.OrderBy(item => item.Index).Select(item => item.Embedding).ToArray();
     }
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     private sealed record VoyageEmbedRequest(
         [property: JsonPropertyName("model")] string Model,

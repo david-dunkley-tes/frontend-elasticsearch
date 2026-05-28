@@ -9,13 +9,11 @@ namespace StudentSearch.Api.Infrastructure.Elasticsearch;
 
 public sealed class ElasticsearchGateway(ElasticsearchClient client) : IElasticsearchGateway
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
-
     public async Task<JsonNode?> SendAsync(NetHttpMethod method, string path, JsonNode? body = null)
     {
         var text = body is null
             ? await SendWithoutBodyAsync(method, path)
-            : await SendRawAsync(method, path, body.ToJsonString(JsonOptions));
+            : await SendRawAsync(method, path, body.ToJsonString(JsonDefaults.Web));
 
         return string.IsNullOrWhiteSpace(text) ? null : JsonNode.Parse(text);
     }

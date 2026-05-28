@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text;
 using System.Text.Json;
+using StudentSearch.Api.Infrastructure;
 using StudentSearch.Api.Models;
 
 namespace StudentSearch.Api.Services;
@@ -8,8 +9,6 @@ namespace StudentSearch.Api.Services;
 public sealed class DevBearerAuthenticationMiddleware(RequestDelegate next)
 {
     public const string ScopesClaimType = "scopes";
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 
     public async Task InvokeAsync(HttpContext context)
     {
@@ -33,7 +32,7 @@ public sealed class DevBearerAuthenticationMiddleware(RequestDelegate next)
         {
             new(ClaimTypes.NameIdentifier, token.Sub),
             new("sub", token.Sub),
-            new(ScopesClaimType, JsonSerializer.Serialize(token.Scopes, JsonOptions))
+            new(ScopesClaimType, JsonSerializer.Serialize(token.Scopes, JsonDefaults.Web))
         };
 
         if (!string.IsNullOrWhiteSpace(token.Name))
@@ -65,7 +64,7 @@ public sealed class DevBearerAuthenticationMiddleware(RequestDelegate next)
         try
         {
             var json = Encoding.UTF8.GetString(Base64UrlDecode(bearerToken));
-            var decoded = JsonSerializer.Deserialize<DevAccessToken>(json, JsonOptions);
+            var decoded = JsonSerializer.Deserialize<DevAccessToken>(json, JsonDefaults.Web);
             if (decoded is null || string.IsNullOrWhiteSpace(decoded.Sub) || decoded.Scopes.Count == 0)
             {
                 return false;

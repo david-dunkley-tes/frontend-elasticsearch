@@ -1,5 +1,3 @@
-using System.Text.Json.Serialization;
-
 namespace StudentSearch.Api.Models;
 
 public sealed record DevAccessToken(string Sub, string? Name, List<AuthorizationScope> Scopes);
@@ -17,7 +15,3 @@ public sealed record AuthorizedSchoolScope(bool IsGlobal, IReadOnlyCollection<st
 }
 
 public sealed record CurrentUserResponse(string Sub, string? Name, IReadOnlyList<AuthorizationScope> Scopes);
-
-[JsonSerializable(typeof(DevAccessToken))]
-[JsonSerializable(typeof(List<AuthorizationScope>))]
-public sealed partial class AuthorizationJsonContext : JsonSerializerContext;

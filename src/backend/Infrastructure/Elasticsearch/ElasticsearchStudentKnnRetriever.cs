@@ -114,7 +114,7 @@ public sealed class ElasticsearchStudentKnnRetriever(
                 continue;
             }
 
-            var record = source.Deserialize<StudentRecord>(JsonOptions);
+            var record = source.Deserialize<StudentRecord>(JsonDefaults.Web);
             if (record is null || record.SafeguardingLog is null)
             {
                 continue;
@@ -127,5 +127,4 @@ public sealed class ElasticsearchStudentKnnRetriever(
         return hits;
     }
 
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
 }

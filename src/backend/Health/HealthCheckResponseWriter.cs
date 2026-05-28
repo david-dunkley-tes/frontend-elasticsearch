@@ -1,12 +1,11 @@
 using System.Text.Json;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
+using StudentSearch.Api.Infrastructure;
 
 namespace StudentSearch.Api.Health;
 
 public static class HealthCheckResponseWriter
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web) { WriteIndented = false };
-
     public static Task WriteJsonAsync(HttpContext context, HealthReport report)
     {
         context.Response.ContentType = "application/json";
@@ -25,6 +24,6 @@ public static class HealthCheckResponseWriter
                 })
         };
 
-        return JsonSerializer.SerializeAsync(context.Response.Body, response, JsonOptions);
+        return JsonSerializer.SerializeAsync(context.Response.Body, response, JsonDefaults.Web);
     }
 }

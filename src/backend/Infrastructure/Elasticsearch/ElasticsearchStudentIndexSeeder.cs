@@ -29,7 +29,7 @@ public sealed class ElasticsearchStudentIndexSeeder(
         await CreateIndexAsync();
 
         var seedText = await File.ReadAllTextAsync(configuration.SeedDataPath);
-        var documents = JsonSerializer.Deserialize<List<StudentRecord>>(seedText, JsonOptions()) ?? [];
+        var documents = JsonSerializer.Deserialize<List<StudentRecord>>(seedText, JsonDefaults.Web) ?? [];
 
         var redactedNarratives = ComputeRedactedNarratives(documents);
         var embeddings = await ComputeEmbeddingsAsync(documents, redactedNarratives);
@@ -45,7 +45,7 @@ public sealed class ElasticsearchStudentIndexSeeder(
                 embeddings.TryGetValue(document.Student.Id, out embedding);
             }
 
-            bulkPayload.AppendLine(JsonSerializer.Serialize(new { index = new { _id = document.Student.Id } }, JsonOptions()));
+            bulkPayload.AppendLine(JsonSerializer.Serialize(new { index = new { _id = document.Student.Id } }, JsonDefaults.Web));
             bulkPayload.AppendLine(BuildDocumentJson(document, redactedNarrative, embedding));
         }
 
@@ -104,7 +104,7 @@ public sealed class ElasticsearchStudentIndexSeeder(
 
     private string BuildDocumentJson(StudentRecord document, string? redactedNarrative, float[]? embedding)
     {
-        var node = JsonSerializer.SerializeToNode(document, JsonOptions())!.AsObject();
+        var node = JsonSerializer.SerializeToNode(document, JsonDefaults.Web)!.AsObject();
 
         if (document.SafeguardingLog is null)
         {
@@ -128,7 +128,7 @@ public sealed class ElasticsearchStudentIndexSeeder(
             }
         }
 
-        return node.ToJsonString(JsonOptions());
+        return node.ToJsonString(JsonDefaults.Web);
     }
 
     private Task CreateIndexAsync()
@@ -190,6 +190,4 @@ public sealed class ElasticsearchStudentIndexSeeder(
 
         return gateway.SendAsync(HttpMethod.Put, $"/{configuration.IndexName}", mapping);
     }
-
-    private static JsonSerializerOptions JsonOptions() => new(JsonSerializerDefaults.Web);
 }

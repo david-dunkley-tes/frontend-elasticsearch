@@ -1,5 +1,4 @@
 using System.Net.Http.Json;
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using StudentSearch.Api.Configuration;
 using StudentSearch.Api.Interfaces;
@@ -22,7 +21,7 @@ public sealed class AnthropicMessagesClient(HttpClient httpClient, RagConfigurat
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, MessagesPath)
         {
-            Content = JsonContent.Create(body, options: JsonOptions),
+            Content = JsonContent.Create(body, options: JsonDefaults.WebIgnoreNullsOnWrite),
         };
         httpRequest.Headers.Add("x-api-key", configuration.AnthropicApiKey);
         httpRequest.Headers.Add("anthropic-version", ApiVersion);
@@ -34,17 +33,12 @@ public sealed class AnthropicMessagesClient(HttpClient httpClient, RagConfigurat
             throw new InvalidOperationException($"Anthropic messages failed with {(int)response.StatusCode}: {raw}");
         }
 
-        var parsed = await response.Content.ReadFromJsonAsync<AnthropicResponseBody>(JsonOptions, cancellationToken)
+        var parsed = await response.Content.ReadFromJsonAsync<AnthropicResponseBody>(JsonDefaults.WebIgnoreNullsOnWrite, cancellationToken)
             ?? throw new InvalidOperationException("Anthropic returned an empty messages body.");
 
         var text = string.Concat(parsed.Content.Where(c => c.Type == "text").Select(c => c.Text));
         return new AnthropicMessageResponse(text, parsed.Usage?.InputTokens, parsed.Usage?.OutputTokens);
     }
-
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
-    {
-        DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-    };
 
     private sealed record AnthropicRequestBody(
         [property: JsonPropertyName("model")] string Model,

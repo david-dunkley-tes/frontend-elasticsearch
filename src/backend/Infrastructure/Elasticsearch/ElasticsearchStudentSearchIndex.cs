@@ -328,8 +328,8 @@ public sealed class ElasticsearchStudentSearchIndex(
             }
 
             var source = hit["_source"]!;
-            var record = source.Deserialize<StudentRecord>(JsonOptions())!;
-            var highlight = hit["highlight"]?.Deserialize<Dictionary<string, string[]>>(JsonOptions()) ?? new();
+            var record = source.Deserialize<StudentRecord>(JsonDefaults.Web)!;
+            var highlight = hit["highlight"]?.Deserialize<Dictionary<string, string[]>>(JsonDefaults.Web) ?? new();
             results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.SafeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
         }
 
@@ -391,6 +391,4 @@ public sealed class ElasticsearchStudentSearchIndex(
 
         return string.Join(' ', value.Split(' ', StringSplitOptions.RemoveEmptyEntries).Select(part => char.ToUpperInvariant(part[0]) + part[1..]));
     }
-
-    private static JsonSerializerOptions JsonOptions() => new(JsonSerializerDefaults.Web);
 }

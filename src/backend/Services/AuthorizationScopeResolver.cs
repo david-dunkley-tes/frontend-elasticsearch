@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using System.Text.Json;
 using StudentSearch.Api.Configuration;
+using StudentSearch.Api.Infrastructure;
 using StudentSearch.Api.Interfaces;
 using StudentSearch.Api.Models;
 
@@ -8,8 +9,6 @@ namespace StudentSearch.Api.Services;
 
 public sealed class AuthorizationScopeResolver(SearchConfiguration configuration) : IAuthorizationScopeResolver
 {
-    private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web);
-
     public async Task<AuthorizedSchoolScope> ResolveAsync(ClaimsPrincipal user)
     {
         var scopesJson = user.FindFirstValue(DevBearerAuthenticationMiddleware.ScopesClaimType);
@@ -18,7 +17,7 @@ public sealed class AuthorizationScopeResolver(SearchConfiguration configuration
             return new AuthorizedSchoolScope(false, []);
         }
 
-        var scopes = JsonSerializer.Deserialize<List<AuthorizationScope>>(scopesJson, JsonOptions) ?? [];
+        var scopes = JsonSerializer.Deserialize<List<AuthorizationScope>>(scopesJson, JsonDefaults.Web) ?? [];
         if (scopes.Any(scope => scope.Type.Equals("global", StringComparison.OrdinalIgnoreCase)))
         {
             return AuthorizedSchoolScope.Global;
@@ -73,6 +72,6 @@ public sealed class AuthorizationScopeResolver(SearchConfiguration configuration
         }
 
         var json = await File.ReadAllTextAsync(configuration.SeedDataPath);
-        return JsonSerializer.Deserialize<List<StudentRecord>>(json, JsonOptions) ?? [];
+        return JsonSerializer.Deserialize<List<StudentRecord>>(json, JsonDefaults.Web) ?? [];
     }
 }
