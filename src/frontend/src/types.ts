@@ -23,11 +23,17 @@ export type SafeguardingLog = {
   narrative: string;
 };
 
+export type ClassGroup = {
+  name: string;
+  teacher: string;
+};
+
 export type SearchResult = {
   id: string;
   student: Student;
   school: School;
   trust: Trust;
+  classGroup?: ClassGroup | null;
   safeguardingLog?: SafeguardingLog | null;
   highlights: Record<string, string[]>;
   score?: number | null;
@@ -66,6 +72,7 @@ export type Filters = Record<string, string[]>;
 export type SearchRequest = {
   query: string;
   filters: Filters;
+  studentIds?: string[];
   sort: string;
   page: number;
   pageSize: number;

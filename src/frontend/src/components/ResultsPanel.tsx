@@ -1,4 +1,4 @@
-import { AlertTriangle, Building2, ChevronLeft, ChevronRight, GraduationCap, Hash, MapPin, Network } from 'lucide-react';
+import { AlertTriangle, Building2, ChevronLeft, ChevronRight, GraduationCap, Hash, MapPin, Network, Users } from 'lucide-react';
 import type { SearchResponse, SearchResult } from '../types';
 import { Highlights } from './Highlights';
 
@@ -157,6 +157,12 @@ function StudentResultCard({
             <span>No trust</span>
           )}
         </div>
+        {result.classGroup && (
+          <div>
+            <Users size={15} />
+            <span>{result.classGroup.name} class · {result.classGroup.teacher}</span>
+          </div>
+        )}
       </div>
 
       <div className="student-card-footer">
@@ -190,6 +196,11 @@ function getMatchTypes(result: SearchResult) {
       kind: 'trust',
       label: 'Trust match',
       matched: fields.some((field) => field.startsWith('trust.')),
+    },
+    {
+      kind: 'class',
+      label: 'Class match',
+      matched: fields.some((field) => field.startsWith('classGroup.')),
     },
   ];
 

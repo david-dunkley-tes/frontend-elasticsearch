@@ -75,6 +75,45 @@ public sealed class ElasticsearchStudentSearchIndexTests
     }
 
     [Fact]
+    public async Task SearchAsync_AppliesStudentIdConstraintToHitsAndFacetAggregations()
+    {
+        var gateway = new CapturingElasticsearchGateway();
+        var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
+        var request = new SearchRequest(StudentIds: ["S11209", "S11761"]);
+
+        await index.SearchAsync(request, AuthorizedSchoolScope.Global);
+
+        var body = gateway.CapturedBody!;
+        var queryFilter = body["query"]!["bool"]!["filter"]!.ToJsonString();
+        var schoolAggFilter = body["aggs"]!["school"]!["filter"]!.ToJsonString();
+
+        // student.id is a lowercase-normalized keyword, so the terms values must be lowercased.
+        Assert.Contains("\"student.id\"", queryFilter);
+        Assert.Contains("s11209", queryFilter);
+        Assert.Contains("s11761", queryFilter);
+        Assert.DoesNotContain("S11209", queryFilter);
+
+        // The constraint must also narrow facet counts.
+        Assert.Contains("\"student.id\"", schoolAggFilter);
+        Assert.Contains("s11209", schoolAggFilter);
+    }
+
+    [Fact]
+    public async Task SearchAsync_OmitsStudentIdConstraintWhenNoneProvided()
+    {
+        var gateway = new CapturingElasticsearchGateway();
+        var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
+
+        await index.SearchAsync(new SearchRequest(), AuthorizedSchoolScope.Global);
+
+        // No constraint => no student.id terms clause in the query or aggregation filters.
+        // (student.id legitimately appears elsewhere, e.g. the highlight fields.)
+        var body = gateway.CapturedBody!;
+        Assert.DoesNotContain("\"student.id\"", body["query"]!["bool"]!["filter"]!.ToJsonString());
+        Assert.DoesNotContain("\"student.id\"", body["aggs"]!["school"]!["filter"]!.ToJsonString());
+    }
+
+    [Fact]
     public async Task SearchAsync_DeniesAllDocumentsWhenAuthorizationScopeIsEmpty()
     {
         var gateway = new CapturingElasticsearchGateway();

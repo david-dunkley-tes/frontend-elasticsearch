@@ -57,7 +57,7 @@ The `/feature-done` workflow (defined in `AGENTS.md` and `.codex/commands/featur
 - `Interfaces/` (namespace `StudentSearch.Api.Interfaces`) — every public service/seam contract lives here (`IStudentSearchService`, `IStudentSearchIndex`, `IStudentIndexSeeder`, `ISafeguardingService`, `IEmbeddingClient`, `IAnthropicClient`, `IStudentKnnRetriever`, etc.). Contract-adjacent records (e.g. `KnnHit`/`KnnSearchResult`, `AnthropicMessageRequest`/`AnthropicMessageResponse`) live alongside their interface.
 - `Services/` — application logic, implementations only. **Must stay decoupled from Elasticsearch.** `StudentSearchService` normalizes a request then calls `IStudentSearchIndex`; `ReindexService` calls `IStudentIndexSeeder`. The interfaces in `Interfaces/` are the seam — never reference `Elastic.Clients.Elasticsearch` or raw ES JSON from `Services/`. When adding a new service, put the interface under `Interfaces/` and the implementation under `Services/`.
 - `Infrastructure/Elasticsearch/` — the only place ES SDK usage, query JSON, mappings, and bulk operations are allowed. `ElasticsearchStudentSearchIndex` builds the search payload; `ElasticsearchStudentIndexSeeder` recreates the index from `data/students.seed.json`; `ElasticsearchGateway` is the low-level HTTP wrapper.
-- `Models/` — request/response DTOs and domain records (one ES document = one student, with school and trust denormalized inline).
+- `Models/` — request/response DTOs and domain records (one ES document = one student, with school, trust, and `classGroup` (class name + teacher) denormalized inline). Within a school year there are two classes named after trees (e.g. Acorn/Pine), each with one teacher. The teacher name is PII: `NarrativeRedactor` scrubs it to `[teacher]` (alongside `[student]`/`[school]`) before any narrative is embedded or sent to Voyage/Anthropic.
 - `Configuration/SearchConfiguration` — resolves ES URL, index name, and absolute paths to `data/students.seed.json` and `data/saved-searches.json` (paths are relative to `ContentRootPath/../..`).
 
 ### Authorization model
@@ -80,9 +80,10 @@ When adding endpoints that touch student data, always resolve the scope and pass
 These are deliberate and called out in `README.md`; preserve them when editing search code:
 
 - Non-empty `query` sorts by Elasticsearch `_score`; empty `query` sorts by `student.surname.keyword` then `student.foreName.keyword`.
-- Free-text query combines exact ID match, phrase boosts, and a fuzzy `multi_match` (`type: best_fields`, `fuzziness: AUTO`) across student/school/trust fields.
+- Free-text query combines exact ID match, phrase boosts, and a fuzzy `multi_match` (`type: best_fields`, `fuzziness: AUTO`) across student/school/trust/class fields (including `classGroup.name` and `classGroup.teacher`).
 - Facets use **self-excluding counts** (each facet aggregation excludes its own selected filter).
 - The frontend hides facet groups with only one available option and sorts the `yearGroup` facet by the numeric year while preserving labels.
+- The `classTeacher` facet (combined "Class - Teacher", backed by the case-preserving `classGroup.label` keyword) is only rendered once the result set is narrow — the frontend hides it until there are ≤5 options. Its labels are shown verbatim (not title-cased), via the `RawLabel` flag on `FacetDefinition`.
 - `trust` can be `null`; the index uses sentinel `__NO_TRUST__` for the "missing" bucket and the UI renders it as "No trust".
 - Page size is clamped to `[1, 100]` in `StudentSearchService.NormalizeRequest`.
 

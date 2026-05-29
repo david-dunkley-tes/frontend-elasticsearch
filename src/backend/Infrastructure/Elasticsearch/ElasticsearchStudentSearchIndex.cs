@@ -18,7 +18,10 @@ public sealed class ElasticsearchStudentSearchIndex(
     [
         new("yearGroup", "Year group", "student.yearGroup"),
         new("school", "School", "school.name.keyword"),
-        new("trust", "Trust", "trust.name.keyword", SupportsMissing: true)
+        new("trust", "Trust", "trust.name.keyword", SupportsMissing: true),
+        // Case-preserving combined "Class — Teacher" label; the frontend only shows it once the
+        // result set is small (≤5 options), so it isn't title-cased and keeps the original casing.
+        new("classTeacher", "Class", "classGroup.label", RawLabel: true)
     ];
 
     public async Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
@@ -55,7 +58,7 @@ public sealed class ElasticsearchStudentSearchIndex(
 
     private static JsonObject BuildMainQuery(SearchRequest request, AuthorizedSchoolScope authorizationScope)
     {
-        var filters = BuildFilterClauses(request.Filters, null, authorizationScope);
+        var filters = BuildFilterClauses(request.Filters, request.StudentIds, null, authorizationScope);
         if (string.IsNullOrWhiteSpace(request.Query))
         {
             return new JsonObject
@@ -95,7 +98,7 @@ public sealed class ElasticsearchStudentSearchIndex(
                 {
                     ["query"] = query,
                     ["type"] = "phrase",
-                    ["fields"] = new JsonArray("student.fullName^8", "student.surname^10", "school.name^5", "trust.name^5"),
+                    ["fields"] = new JsonArray("student.fullName^8", "student.surname^10", "school.name^5", "trust.name^5", "classGroup.name^5", "classGroup.teacher^5"),
                     ["boost"] = 4
                 }
             }
@@ -109,7 +112,7 @@ public sealed class ElasticsearchStudentSearchIndex(
                 {
                     ["query"] = query,
                     ["type"] = "bool_prefix",
-                    ["fields"] = new JsonArray("student.fullName^4", "student.foreName^3", "student.surname^5", "school.name^3", "trust.name^3", "school.address^1"),
+                    ["fields"] = new JsonArray("student.fullName^4", "student.foreName^3", "student.surname^5", "school.name^3", "trust.name^3", "classGroup.name^3", "classGroup.teacher^3", "school.address^1"),
                     ["boost"] = 1.5
                 }
             });
@@ -121,7 +124,7 @@ public sealed class ElasticsearchStudentSearchIndex(
             {
                 ["query"] = query,
                 ["type"] = "best_fields",
-                ["fields"] = new JsonArray("student.id^12", "student.fullName^6", "student.foreName^4", "student.surname^8", "student.yearGroup^2", "school.name^4", "trust.name^4", "school.address^1"),
+                ["fields"] = new JsonArray("student.id^12", "student.fullName^6", "student.foreName^4", "student.surname^8", "student.yearGroup^2", "school.name^4", "trust.name^4", "classGroup.name^4", "classGroup.teacher^4", "school.address^1"),
                 ["fuzziness"] = "AUTO",
                 ["prefix_length"] = 1,
                 ["boost"] = 2
@@ -144,10 +147,11 @@ public sealed class ElasticsearchStudentSearchIndex(
         return tokens.Length == 1;
     }
 
-    private static JsonArray BuildFilterClauses(IReadOnlyDictionary<string, List<string>> filters, string? excludeFacetId, AuthorizedSchoolScope authorizationScope)
+    private static JsonArray BuildFilterClauses(IReadOnlyDictionary<string, List<string>> filters, IReadOnlyList<string> studentIds, string? excludeFacetId, AuthorizedSchoolScope authorizationScope)
     {
         var clauses = new JsonArray();
         AddAuthorizationFilter(clauses, authorizationScope);
+        AddStudentIdFilter(clauses, studentIds);
 
         foreach (var facet in Facets)
         {
@@ -189,6 +193,19 @@ public sealed class ElasticsearchStudentSearchIndex(
         clauses.Add(new JsonObject
         {
             ["terms"] = new JsonObject { ["school.id"] = ToJsonArray(authorizationScope.SchoolIds.Select(id => id.ToLowerInvariant())) }
+        });
+    }
+
+    private static void AddStudentIdFilter(JsonArray clauses, IReadOnlyList<string> studentIds)
+    {
+        if (studentIds.Count == 0)
+        {
+            return;
+        }
+
+        clauses.Add(new JsonObject
+        {
+            ["terms"] = new JsonObject { ["student.id"] = ToJsonArray(studentIds.Select(id => id.ToLowerInvariant())) }
         });
     }
 
@@ -274,7 +291,7 @@ public sealed class ElasticsearchStudentSearchIndex(
 
     private static JsonObject BuildAggregationFilter(SearchRequest request, string facetId, AuthorizedSchoolScope authorizationScope)
     {
-        var filters = BuildFilterClauses(request.Filters, facetId, authorizationScope);
+        var filters = BuildFilterClauses(request.Filters, request.StudentIds, facetId, authorizationScope);
         if (string.IsNullOrWhiteSpace(request.Query))
         {
             return new JsonObject
@@ -300,7 +317,7 @@ public sealed class ElasticsearchStudentSearchIndex(
     private static JsonObject BuildHighlight()
     {
         var fields = new JsonObject();
-        foreach (var field in new[] { "student.id", "student.fullName", "student.foreName", "student.surname", "student.yearGroup", "school.name", "school.address", "trust.name" })
+        foreach (var field in new[] { "student.id", "student.fullName", "student.foreName", "student.surname", "student.yearGroup", "school.name", "school.address", "trust.name", "classGroup.name", "classGroup.teacher" })
         {
             fields[field] = new JsonObject();
         }
@@ -330,7 +347,7 @@ public sealed class ElasticsearchStudentSearchIndex(
             var source = hit["_source"]!;
             var record = source.Deserialize<StudentRecord>(JsonDefaults.Web)!;
             var highlight = hit["highlight"]?.Deserialize<Dictionary<string, string[]>>(JsonDefaults.Web) ?? new();
-            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.SafeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
+            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.ClassGroup, record.SafeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
         }
 
         return new SearchResponse(
@@ -359,7 +376,8 @@ public sealed class ElasticsearchStudentSearchIndex(
                     continue;
                 }
 
-                options.Add(new FacetOption(value, ToTitle(value), bucket!["doc_count"]!.GetValue<int>(), selected.Contains(value, StringComparer.OrdinalIgnoreCase)));
+                var label = facet.RawLabel ? value : ToTitle(value);
+                options.Add(new FacetOption(value, label, bucket!["doc_count"]!.GetValue<int>(), selected.Contains(value, StringComparer.OrdinalIgnoreCase)));
             }
 
             if (facet.SupportsMissing)

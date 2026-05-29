@@ -5,7 +5,7 @@ import userEvent from '@testing-library/user-event';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '../../src/frontend/src/App';
 import { ActiveUserProvider } from '../../src/frontend/src/auth/ActiveUserContext';
-import type { SavedSearch, SearchResponse, VersionInfo } from '../../src/frontend/src/types';
+import type { SafeguardingAnswer, SavedSearch, SearchResponse, VersionInfo } from '../../src/frontend/src/types';
 
 const baseResponse: SearchResponse = {
   total: 2,
@@ -29,6 +29,10 @@ const baseResponse: SearchResponse = {
       trust: {
         id: 'TRUST-NORTH-LEARNING',
         name: 'North Learning Trust',
+      },
+      classGroup: {
+        name: 'Acorn',
+        teacher: 'Ms Priya Patel',
       },
       highlights: {
         'student.fullName': ['Ava <mark>Harrington</mark>'],
@@ -98,7 +102,11 @@ const versionInfo: VersionInfo = {
   environment: 'Development',
 };
 
-function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], initialSavedSearches: SavedSearch[] = []) {
+function installFetchMock(
+  searchResponses: SearchResponse[] = [baseResponse],
+  initialSavedSearches: SavedSearch[] = [],
+  safeguardingAnswer: SafeguardingAnswer | null = null,
+) {
   const searchQueue = [...searchResponses];
   let savedSearchQueue = [...initialSavedSearches];
 
@@ -108,6 +116,14 @@ function installFetchMock(searchResponses: SearchResponse[] = [baseResponse], in
 
     if (url.endsWith('/api/search')) {
       return jsonResponse(searchQueue.shift() ?? searchResponses.at(-1) ?? baseResponse);
+    }
+
+    if (url.endsWith('/api/safeguarding/availability')) {
+      return jsonResponse({ available: Boolean(safeguardingAnswer), reason: null });
+    }
+
+    if (url.endsWith('/api/safeguarding') && method === 'POST') {
+      return jsonResponse(safeguardingAnswer ?? { answer: '', sources: [], debug: null });
     }
 
     if (url.endsWith('/version')) {
@@ -212,6 +228,7 @@ describe('App', () => {
     expect(screen.getByText('Student match')).toBeInTheDocument();
     expect(screen.getByText('School match')).toBeInTheDocument();
     expect(screen.getByText('Trust match')).toBeInTheDocument();
+    expect(screen.getAllByText('Acorn class · Ms Priya Patel').length).toBeGreaterThan(0);
   });
 
   it('sends free text search changes to the API and resets to page one', async () => {
@@ -271,6 +288,40 @@ describe('App', () => {
       expect(lastSearchRequest().filters).toEqual({ school: ['westbrook college'] });
     });
     expect(screen.getByRole('button', { name: /school: westbrook college/i })).toBeInTheDocument();
+  });
+
+  it('shows the Class facet only once the result set is small (<=5 options)', async () => {
+    const classTeacherFacet = (count: number) => ({
+      label: 'Class',
+      type: 'multi',
+      selected: [] as string[],
+      options: Array.from({ length: count }, (_, i) => ({
+        value: `Acorn — Teacher ${i}`,
+        label: `Acorn — Teacher ${i}`,
+        count: 1,
+        selected: false,
+      })),
+    });
+
+    installFetchMock([
+      { ...baseResponse, facets: { ...baseResponse.facets, classTeacher: classTeacherFacet(8) } },
+    ]);
+    const view = renderApp();
+    await waitForInitialSearch();
+
+    const filtersPanel = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
+    expect(within(filtersPanel).queryByRole('heading', { name: 'Class' })).not.toBeInTheDocument();
+
+    view.unmount();
+
+    installFetchMock([
+      { ...baseResponse, facets: { ...baseResponse.facets, classTeacher: classTeacherFacet(3) } },
+    ]);
+    renderApp();
+    await waitForInitialSearch();
+
+    const panel2 = screen.getByRole('heading', { name: 'Filters' }).closest('aside')!;
+    expect(within(panel2).getByRole('heading', { name: 'Class' })).toBeInTheDocument();
   });
 
   it('hides facet groups with only one available option', async () => {
@@ -460,6 +511,36 @@ describe('App', () => {
 
     await waitFor(() => {
       expect(screen.queryByText('Westbrook saved')).not.toBeInTheDocument();
+    });
+  });
+
+  it('narrows results to the students cited by a safeguarding answer, then clears them', async () => {
+    const user = userEvent.setup();
+    const safeguardingAnswer: SafeguardingAnswer = {
+      answer: 'Two pupils show neglect indicators: [S11209] and [S11761].',
+      sources: [
+        { studentId: 'S11209', fullName: 'Ava Harrington', yearGroup: 'Year 9', schoolId: 'SCH-WESTBROOK', schoolName: 'Westbrook College', trustName: null, category: 'neglect', date: '2026-05-01', narrative: 'Matted hair noted.', score: 0.9 },
+        { studentId: 'S11761', fullName: 'Ruby Khan', yearGroup: 'Year 10', schoolId: 'SCH-EASTFIELD', schoolName: 'Eastfield School', trustName: null, category: 'neglect', date: '2026-05-02', narrative: 'Matted hair noted.', score: 0.8 },
+      ],
+      debug: null,
+    };
+    installFetchMock([baseResponse, baseResponse], [], safeguardingAnswer);
+
+    renderApp();
+    await waitForInitialSearch();
+
+    await user.type(screen.getByLabelText('Safeguarding question'), 'matted hair');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+
+    await waitFor(() => {
+      expect(lastSearchRequest().studentIds).toEqual(['S11209', 'S11761']);
+    });
+
+    const clearChip = await screen.findByRole('button', { name: /safeguarding match: 2 students/i });
+    await user.click(clearChip);
+
+    await waitFor(() => {
+      expect(lastSearchRequest().studentIds).toEqual([]);
     });
   });
 

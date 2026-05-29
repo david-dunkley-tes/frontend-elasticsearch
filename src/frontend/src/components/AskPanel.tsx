@@ -2,6 +2,7 @@ import React from 'react';
 import { Sparkles } from 'lucide-react';
 import { askSafeguarding } from '../api/studentSearchApi';
 import { formatCategoryLabel } from '../format';
+import { citedSources } from '../safeguarding';
 import type { SafeguardingAnswer, SafeguardingSource } from '../types';
 
 type AskPanelProps = {
@@ -42,7 +43,7 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
     }
   }
 
-  const sourcesToShow = answer ? selectSourcesToShow(answer) : [];
+  const sourcesToShow = answer ? citedSources(answer) : [];
 
   return (
     <details className="ask-panel">
@@ -75,7 +76,10 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
 
         {answer && (
           <div className="ask-result">
-            <div className="ask-answer">{renderInlineMarkdown(answer.answer)}</div>
+            <details className="ask-answer-details">
+              <summary>AI summary</summary>
+              <div className="ask-answer">{renderInlineMarkdown(answer.answer)}</div>
+            </details>
             {sourcesToShow.length > 0 && (
               <div className="ask-sources">
                 <h4>Cited sources ({sourcesToShow.length} of {answer.sources.length} retrieved)</h4>
@@ -101,14 +105,6 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
       </div>
     </details>
   );
-}
-
-function selectSourcesToShow(answer: SafeguardingAnswer): SafeguardingSource[] {
-  const citedIds = new Set(Array.from(answer.answer.matchAll(/\[(S\d+)\]/g), (match) => match[1]));
-  if (citedIds.size === 0) {
-    return answer.sources;
-  }
-  return answer.sources.filter((source) => citedIds.has(source.studentId));
 }
 
 function renderInlineMarkdown(text: string): React.ReactNode {

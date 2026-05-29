@@ -32,6 +32,19 @@ public sealed class StudentSearchServiceTests
     }
 
     [Fact]
+    public async Task SearchAsync_TrimsAndDeduplicatesStudentIds()
+    {
+        var index = new CapturingStudentSearchIndex();
+        var service = new StudentSearchService(index);
+        var request = new SearchRequest(StudentIds: ["  S11209 ", "S11761", "S11209", "", "  "]);
+
+        await service.SearchAsync(request, AuthorizedSchoolScope.Global);
+
+        Assert.NotNull(index.CapturedRequest);
+        Assert.Equal(["S11209", "S11761"], index.CapturedRequest.StudentIds);
+    }
+
+    [Fact]
     public async Task SearchAsync_ClampsPageSizeToOneHundred()
     {
         var index = new CapturingStudentSearchIndex();

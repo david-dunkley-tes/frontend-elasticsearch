@@ -17,10 +17,10 @@ export type UserPreset = {
 export const USER_PRESETS: UserPreset[] = [
   {
     id: 'global',
-    label: 'MAT Safeguarding Lead (all schools)',
+    label: 'System Administrator (all schools)',
     token: {
-      sub: 'dev-mat-safeguarding-lead',
-      name: 'MAT Safeguarding Lead',
+      sub: 'dev-system-administrator',
+      name: 'System Administrator',
       scopes: [{ type: 'global' }],
     },
   },

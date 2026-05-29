@@ -20,12 +20,19 @@ public sealed class StudentSearchService(IStudentSearchIndex studentSearchIndex)
             item => item.Value.Where(value => !string.IsNullOrWhiteSpace(value)).Distinct(StringComparer.OrdinalIgnoreCase).ToList(),
             StringComparer.OrdinalIgnoreCase);
 
+        var studentIds = request.StudentIds
+            .Select(id => id?.Trim() ?? string.Empty)
+            .Where(id => id.Length > 0)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToList();
+
         return request with
         {
             Query = request.Query?.Trim() ?? string.Empty,
             Page = page,
             PageSize = pageSize,
-            Filters = filters
+            Filters = filters,
+            StudentIds = studentIds
         };
     }
 }

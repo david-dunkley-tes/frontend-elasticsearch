@@ -64,7 +64,7 @@ public sealed class ElasticsearchStudentIndexSeeder(
             {
                 continue;
             }
-            result[record.Student.Id] = redactor.Redact(record.SafeguardingLog.Narrative, record.Student, record.School);
+            result[record.Student.Id] = redactor.Redact(record.SafeguardingLog.Narrative, record.Student, record.School, record.ClassGroup?.Teacher);
         }
         return result;
     }
@@ -105,6 +105,12 @@ public sealed class ElasticsearchStudentIndexSeeder(
     private string BuildDocumentJson(StudentRecord document, string? redactedNarrative, float[]? embedding)
     {
         var node = JsonSerializer.SerializeToNode(document, JsonDefaults.Web)!.AsObject();
+
+        if (document.ClassGroup is not null)
+        {
+            // Denormalize a combined, case-preserving "Class - Teacher" label so it can back a single facet.
+            node["classGroup"]!.AsObject()["label"] = $"{document.ClassGroup.Name} - {document.ClassGroup.Teacher}";
+        }
 
         if (document.SafeguardingLog is null)
         {
@@ -167,6 +173,13 @@ public sealed class ElasticsearchStudentIndexSeeder(
                 "properties": {
                   "id": { "type": "keyword", "normalizer": "lowercase_keyword" },
                   "name": { "type": "text", "fields": { "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" } } }
+                }
+              },
+              "classGroup": {
+                "properties": {
+                  "name": { "type": "text", "fields": { "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" } } },
+                  "teacher": { "type": "text", "fields": { "keyword": { "type": "keyword", "normalizer": "lowercase_keyword" } } },
+                  "label": { "type": "keyword" }
                 }
               },
               "safeguardingLog": {

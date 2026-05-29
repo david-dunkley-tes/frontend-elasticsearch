@@ -13,6 +13,7 @@ import { SavedSearchesPanel } from './components/SavedSearchesPanel';
 import { SelectedFilters } from './components/SelectedFilters';
 import { StudentDetail } from './components/StudentDetail';
 import { TopBar } from './components/TopBar';
+import { citedStudentIds } from './safeguarding';
 import type { Facet, Filters, SafeguardingAnswer, SafeguardingSource, SavedSearch, SearchResponse } from './types';
 
 const reservedSearchParams = new Set(['q', 'page']);
@@ -40,11 +41,12 @@ export function App() {
   const [error, setError] = React.useState<string | null>(null);
   const [availability, setAvailability] = React.useState<{ available: boolean; reason: string | null }>({ available: false, reason: null });
   const [safeguardingAnswer, setSafeguardingAnswer] = React.useState<SafeguardingAnswer | null>(null);
+  const [safeguardingStudentIds, setSafeguardingStudentIds] = React.useState<string[]>([]);
   const pageSize = 10;
 
   const requestPayload = React.useMemo(
-    () => ({ query, filters, sort: query.trim() ? 'relevance' : 'studentName', page, pageSize, debugMode }),
-    [query, filters, page, debugMode],
+    () => ({ query, filters, studentIds: safeguardingStudentIds, sort: query.trim() ? 'relevance' : 'studentName', page, pageSize, debugMode }),
+    [query, filters, safeguardingStudentIds, page, debugMode],
   );
 
   React.useEffect(() => {
@@ -97,6 +99,21 @@ export function App() {
       .catch(() => setAvailability({ available: false, reason: 'Safeguarding availability check failed' }));
   }, [presetId]);
 
+  // When a safeguarding answer arrives, narrow the results to exactly the cited
+  // students: clear the free-text query and facet filters so the list shows that
+  // set unambiguously. Clearing the answer (e.g. on preset change) releases it.
+  React.useEffect(() => {
+    if (!safeguardingAnswer) {
+      setSafeguardingStudentIds([]);
+      return;
+    }
+
+    setQuery('');
+    setFilters({});
+    setPage(1);
+    setSafeguardingStudentIds(citedStudentIds(safeguardingAnswer));
+  }, [safeguardingAnswer]);
+
   React.useEffect(() => {
     let active = true;
 
@@ -121,7 +138,16 @@ export function App() {
   const pageCount = response ? Math.max(1, Math.ceil(response.total / pageSize)) : 1;
   const visibleFacets = response
     ? Object.entries(response.facets)
-        .filter(([, facet]) => facet.options.length > 1)
+        .filter(([facetId, facet]) => {
+          if (facet.options.length <= 1) {
+            return false;
+          }
+          // Class–teacher is only useful once the result set is narrow; hide it until ≤5 remain.
+          if (facetId === 'classTeacher' && facet.options.length > 5) {
+            return false;
+          }
+          return true;
+        })
         .map(([facetId, facet]) => [facetId, sortFacetForDisplay(facetId, facet)] as const)
     : [];
 
@@ -214,17 +240,27 @@ export function App() {
     if (next === presetId) {
       return;
     }
+    // Switching the "logged in" user is a demo device: reset to that user's
+    // default search — clear the query, filters and the safeguarding constraint.
+    // (The [presetId] effect clears the safeguarding answer, which in turn clears
+    // safeguardingStudentIds; the keyed AskPanel below resets the Ask box itself.)
     setPresetId(next);
+    setQuery('');
+    setFilters({});
     setPage(1);
     setSelectedId(null);
     setResponse(null);
+    setSafeguardingStudentIds([]);
   }
 
   function handleSourceClick(source: SafeguardingSource) {
-    setQuery(source.studentId);
-    setFilters({});
-    setPage(1);
+    // The cited students are already loaded as the result set, so just focus this one.
     setSelectedId(source.studentId);
+  }
+
+  function clearSafeguardingFilter() {
+    setSafeguardingAnswer(null);
+    setSafeguardingStudentIds([]);
   }
 
   return (
@@ -236,8 +272,15 @@ export function App() {
         onPresetChange={changePreset}
       />
       <SearchBox query={query} onChange={updateQuery} />
-      <SelectedFilters filters={filters} response={response} onClear={clearFilter} />
+      <SelectedFilters
+        filters={filters}
+        response={response}
+        onClear={clearFilter}
+        safeguardingStudentCount={safeguardingStudentIds.length}
+        onClearSafeguarding={clearSafeguardingFilter}
+      />
       <AskPanel
+        key={presetId}
         enabled={availability.available}
         disabledReason={availability.reason}
         debugMode={debugMode}

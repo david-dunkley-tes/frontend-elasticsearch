@@ -5,6 +5,7 @@ public sealed record StudentSearchResult(
     Student Student,
     School School,
     Trust? Trust,
+    ClassGroup? ClassGroup,
     SafeguardingLog? SafeguardingLog,
     IReadOnlyDictionary<string, string[]> Highlights,
     double? Score);

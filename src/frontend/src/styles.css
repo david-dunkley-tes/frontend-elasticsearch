@@ -143,8 +143,25 @@ input {
   margin-top: 14px;
 }
 
-.ask-answer {
+.ask-answer-details {
   margin: 0 0 14px;
+}
+
+.ask-answer-details > summary {
+  cursor: pointer;
+  font-size: 13px;
+  color: #586576;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  user-select: none;
+}
+
+.ask-answer-details[open] > summary {
+  margin-bottom: 8px;
+}
+
+.ask-answer {
+  margin: 0;
   white-space: pre-wrap;
   line-height: 1.5;
 }
@@ -386,6 +403,13 @@ input {
   gap: 8px;
   min-height: 36px;
   margin-bottom: 12px;
+}
+
+.selected-chips .safeguarding-chip {
+  border-color: #b9a3d6;
+  background: #f4eefb;
+  color: #4b2e7a;
+  font-weight: 600;
 }
 
 .workspace {
@@ -639,6 +663,11 @@ input {
 .match-type.trust {
   background: #fff2d8;
   color: #7a4d00;
+}
+
+.match-type.class {
+  background: #f4eefb;
+  color: #4b2e7a;
 }
 
 .student-card-details div {

@@ -4,5 +4,5 @@ namespace StudentSearch.Api.Interfaces;
 
 public interface INarrativeRedactor
 {
-    string Redact(string narrative, Student student, School school);
+    string Redact(string narrative, Student student, School school, string? teacherName = null);
 }

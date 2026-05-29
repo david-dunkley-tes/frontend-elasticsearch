@@ -43,6 +43,13 @@ export function StudentDetail({ result, onDrillDown }: StudentDetailProps) {
           )}
         </h3>
       </div>
+      {result.classGroup && (
+        <div>
+          <span className="eyebrow">Class</span>
+          <h3>{result.classGroup.name}</h3>
+          <p>Teacher: {result.classGroup.teacher}</p>
+        </div>
+      )}
       {result.safeguardingLog && (
         <div className="safeguarding-block">
           <span className="eyebrow">Safeguarding</span>
