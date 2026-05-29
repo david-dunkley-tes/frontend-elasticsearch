@@ -78,7 +78,7 @@ npm run dev
 
 - One Elasticsearch document represents one student.
 - School and trust data are denormalized into each student document.
-- Free-text search covers student ID, forename, surname, full name, year group, school name, school address, and trust name.
+- Free-text search covers student ID, forename, surname, full name, year group, school name, school address, trust name, class name, and class teacher.
 - Non-empty free-text searches sort by Elasticsearch relevance.
 - Empty searches sort by student surname, then forename.
 - Query strategy combines exact student ID matching, phrase boosts, and fuzzy `multi_match` with `type: best_fields` and `fuzziness: AUTO`.
@@ -103,6 +103,12 @@ Search state is encoded in the frontend URL. `q` stores the free-text query, `pa
 http://127.0.0.1:5173/?q=westbrook&school=westbrook+college&yearGroup=year+9
 ```
 
+A known student can be deep-linked **exactly** via the repeated `sId` parameter — this is an exact `student.id` constraint (not the fuzzy `q` search), shown as a removable pill, and intersected with the viewing scope (an unauthorised id simply returns zero results, not a 403).
+
+```text
+http://127.0.0.1:5173/?sId=S11209&sId=S11761
+```
+
 ## Development Authorization
 
 Local development uses an unsigned dev bearer token with a base64url-encoded JSON payload:
@@ -117,11 +123,22 @@ Local development uses an unsigned dev bearer token with a base64url-encoded JSO
 
 The frontend sends this as `Authorization: Bearer <token>`. The backend middleware decodes it into a `ClaimsPrincipal`, and search authorization resolves the token scopes into an allowed school set. Users only see, filter, facet, and drill into the data allowed by their scopes; unauthorized data is not returned in results or facet counts.
 
-Supported development scope types are `global`, `trust`, `school`, and `schoolGroup`. Scopes are additive, so a token can combine a trust with schools outside that trust. The current frontend dev token is scoped to `Kingfisher Academy` using `SCH-KINGFISHER`.
+Supported development scope types are `global`, `trust`, and `school` (a multi-school user is modelled as several `school` scopes). Scopes are additive. Each scope may also carry a `role` list, e.g. `{ "type": "school", "schoolId": "SCH-KINGFISHER", "role": ["DSL"] }`; roles are resolved by specificity (`school` > `trust` > `global`) and gate the safeguarding feature (see below). The current frontend dev token is scoped to `Kingfisher Academy` using `SCH-KINGFISHER`.
 
 All `/api` endpoints require the bearer token. Standard health checks are unauthenticated at `/health/live` and `/health/ready`.
 
 Build/version metadata is unauthenticated at `/version`. It reports the service name, version, commit, build time, and environment. `APP_VERSION`, `GIT_COMMIT`, and `BUILD_TIME` can be injected by Docker or CI; local development falls back to assembly version, `local`, and `unknown`.
+
+## Safeguarding (AI Ask)
+
+The "Ask the safeguarding records" panel is a retrieval-augmented (RAG) search over safeguarding notes:
+
+- **Gated by the `DSL` role**, not just viewing scope. A user only sees the Ask panel — and only retrieves notes — for schools where their token grants `role: ["DSL"]`. The Student detail card likewise hides the safeguarding section for non-DSL schools. Without the role the panel is hidden and `POST /api/safeguarding` returns 403.
+- **PII never leaves the service**: student, school, and teacher names are redacted to `[student]`/`[school]`/`[teacher]` before any text is embedded (Voyage) or sent to the model (Anthropic).
+- **Query expansion**: the question is augmented with related safeguarding terms before retrieval (e.g. `police` ↔ `Operation Encompass`, `social worker` ↔ `children's social care`) so domain jargon is recalled; the original question still drives the answer.
+- **Grounded answers**: the completion runs at `temperature: 0` and is told to use only the supplied records, so a question about a topic with no matching record (e.g. arson) returns "no relevant records" instead of inventing one.
+- **Retrieval window**: `Rag:TopK` (default 25, in `appsettings.json`) sets how many notes are handed to the model.
+- Cited students become a removable result filter; the prose answer is collapsed under an "AI summary" toggle, with a clear "no matching records" notice when nothing is cited.
 
 ## Useful Test Searches
 

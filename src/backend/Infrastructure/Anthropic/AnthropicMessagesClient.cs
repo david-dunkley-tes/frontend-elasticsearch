@@ -17,7 +17,8 @@ public sealed class AnthropicMessagesClient(HttpClient httpClient, RagConfigurat
             request.Model,
             request.MaxTokens,
             request.System,
-            [new AnthropicMessage("user", request.UserMessage)]);
+            [new AnthropicMessage("user", request.UserMessage)],
+            request.Temperature);
 
         using var httpRequest = new HttpRequestMessage(HttpMethod.Post, MessagesPath)
         {
@@ -44,7 +45,8 @@ public sealed class AnthropicMessagesClient(HttpClient httpClient, RagConfigurat
         [property: JsonPropertyName("model")] string Model,
         [property: JsonPropertyName("max_tokens")] int MaxTokens,
         [property: JsonPropertyName("system")] string System,
-        [property: JsonPropertyName("messages")] IReadOnlyList<AnthropicMessage> Messages);
+        [property: JsonPropertyName("messages")] IReadOnlyList<AnthropicMessage> Messages,
+        [property: JsonPropertyName("temperature")] double? Temperature);
 
     private sealed record AnthropicMessage(
         [property: JsonPropertyName("role")] string Role,

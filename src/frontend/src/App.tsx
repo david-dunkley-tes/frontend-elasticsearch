@@ -113,10 +113,17 @@ export function App() {
       return;
     }
 
+    // Only narrow the results when the answer actually cites students. A "no relevant records"
+    // answer cites nobody — leave the current search untouched rather than filtering to an empty set.
+    const cited = citedStudentIds(safeguardingAnswer);
+    if (cited.length === 0) {
+      return;
+    }
+
     setQuery('');
     setFilters({});
     setPage(1);
-    setStudentIds(citedStudentIds(safeguardingAnswer));
+    setStudentIds(cited);
   }, [safeguardingAnswer]);
 
   React.useEffect(() => {

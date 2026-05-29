@@ -1,14 +1,13 @@
 import type { SafeguardingAnswer, SafeguardingSource } from './types';
 
 /**
- * The sources the answer actually cites (by `[Sxxxxx]` reference in its prose),
- * falling back to every retrieved source when the answer cites none.
+ * The sources the answer actually cites (by `[Sxxxxx]` reference in its prose).
+ * If the answer cites nobody (e.g. a "no relevant records" reply), this is empty — we must NOT
+ * fall back to the full retrieved set, or a no-results answer would still list/▸filter the
+ * retrieved-but-irrelevant records.
  */
 export function citedSources(answer: SafeguardingAnswer): SafeguardingSource[] {
   const citedIds = new Set(Array.from(answer.answer.matchAll(/\[(S\d+)\]/g), (match) => match[1]));
-  if (citedIds.size === 0) {
-    return answer.sources;
-  }
   return answer.sources.filter((source) => citedIds.has(source.studentId));
 }
 

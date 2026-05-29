@@ -19,7 +19,11 @@ public sealed class SafeguardingService(
         for privacy — refer to students by their numeric id in square brackets, e.g. [S10042],
         and never invent a real name. Dates are real and you may reason about timing (recent,
         clustered, escalating, etc.). Use only the records provided to answer the question;
-        do not invent details. If the records do not answer the question, say so directly.
+        do not invent details. Only mention incident types, categories or details that actually
+        appear in the records below. If the question concerns a topic that does not appear in any
+        record (for example an incident type with no matching record), state plainly that there are
+        no relevant records — do not describe, infer or imply that such incidents occurred. If the
+        records do not answer the question, say so directly.
         Keep answers concise (2-5 sentences) unless asked for more detail.
         """;
 
@@ -36,7 +40,10 @@ public sealed class SafeguardingService(
             throw new ArgumentException("Question is required.", nameof(request));
         }
 
-        var embeddings = await embeddingClient.EmbedAsync([question], inputType: "query", cancellationToken);
+        // Expand the question with related safeguarding terms for retrieval only (the answer still uses
+        // the original question). Bridges jargon the embedding model represents weakly.
+        var retrievalQuery = SafeguardingQueryExpander.Expand(question);
+        var embeddings = await embeddingClient.EmbedAsync([retrievalQuery], inputType: "query", cancellationToken);
         var queryVector = embeddings[0];
 
         var knn = await knnRetriever.RetrieveAsync(queryVector, configuration.RetrievalTopK, authorizationScope, cancellationToken);
@@ -72,7 +79,8 @@ public sealed class SafeguardingService(
                 configuration.CompletionModel,
                 configuration.CompletionMaxTokens,
                 systemPrompt,
-                userPrompt),
+                userPrompt,
+                Temperature: 0),
             cancellationToken);
 
         var debug = request.DebugMode

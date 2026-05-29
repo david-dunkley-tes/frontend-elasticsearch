@@ -78,6 +78,15 @@ Flow:
 
 When adding endpoints that touch student data, always resolve the viewing scope (and, for safeguarding, the DSL role scope) and pass it through to the index layer — do not assume the user can see everything.
 
+### Safeguarding (AI Ask) RAG
+
+`SafeguardingService.AskAsync` is the RAG flow behind `POST /api/safeguarding`. Preserve these when editing it:
+
+- **Query expansion**: the question is passed through `SafeguardingQueryExpander.Expand` (a small concept→synonym map) before embedding, so jargon is recalled (`police` ↔ `Operation Encompass`, `social worker` ↔ `children's social care`). Only the **retrieval** text is expanded — the original question still goes into the LLM prompt. Concepts deliberately absent from the data (e.g. arson) are kept out of the map so they stay a clean no-hallucination test.
+- **Grounding**: the completion is sent at `temperature: 0` and the system prompt forbids mentioning anything not in the supplied records — a topic with no matching record must return "no relevant records", never an invented one.
+- **Retrieval window**: `RagConfiguration.RetrievalTopK` (`Rag:TopK` in `appsettings.json`, default 25) is how many redacted notes reach the LLM. Bigger = better recall for broad/cross-category questions, more tokens; it does not affect hallucination (grounding does).
+- **Frontend**: only students the answer actually cites (`citedSources` in `safeguarding.ts`) become sources/filter pills — never fall back to the full retrieved set, or a no-results answer would list irrelevant records. A no-citation answer shows an explicit "no matching records" notice.
+
 ### Search behaviour invariants
 
 These are deliberate and called out in `README.md`; preserve them when editing search code:
@@ -96,7 +105,7 @@ Persisted to `data/saved-searches.json` (gitignored) and scoped by the authentic
 
 ## Frontend Architecture
 
-`src/frontend/src/App.tsx` is the single stateful component: it owns query/filters/page/debugMode, syncs them to/from the URL query string (`q`, `page`, and one param per facet — multi-select uses repeated params), and reacts to `popstate`. Debug mode is off by default and is toggled from the page footer alongside Reindex. Effects re-fetch search results whenever the request payload changes (with `AbortController` to cancel stale requests). Components under `components/` are presentational.
+`src/frontend/src/App.tsx` is the single stateful component: it owns query/filters/page/debugMode, syncs them to/from the URL query string (`q`, `page`, one param per facet — multi-select uses repeated params — and `sId` for exact `student.id` deep links, also repeatable), and reacts to `popstate`. Debug mode is off by default and is toggled from the page footer alongside Reindex. Effects re-fetch search results whenever the request payload changes (with `AbortController` to cancel stale requests). Components under `components/` are presentational.
 
 API calls go through `src/api/studentSearchApi.ts`, which hard-codes `API_BASE = http://<hostname>:5000` and builds a dev bearer token in-browser via `encodeDevAccessToken`. The current dev token is scoped to `SCH-KINGFISHER` (Kingfisher Academy); change the payload there to test other scope shapes.
 

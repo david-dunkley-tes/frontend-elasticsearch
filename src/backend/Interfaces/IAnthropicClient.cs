@@ -4,7 +4,8 @@ public sealed record AnthropicMessageRequest(
     string Model,
     int MaxTokens,
     string System,
-    string UserMessage);
+    string UserMessage,
+    double? Temperature = null);
 
 public sealed record AnthropicMessageResponse(
     string Text,

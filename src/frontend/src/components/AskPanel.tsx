@@ -1,5 +1,5 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { SearchX, Sparkles } from 'lucide-react';
 import { askSafeguarding } from '../api/studentSearchApi';
 import { formatCategoryLabel } from '../format';
 import { citedSources } from '../safeguarding';
@@ -76,6 +76,12 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
 
         {answer && (
           <div className="ask-result">
+            {sourcesToShow.length === 0 && (
+              <p className="ask-no-matches">
+                <SearchX size={16} aria-hidden />
+                No matching safeguarding records found for this question.
+              </p>
+            )}
             <details className="ask-answer-details">
               <summary>AI summary</summary>
               <div className="ask-answer">{renderInlineMarkdown(answer.answer)}</div>
@@ -86,7 +92,24 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
                 <ul>
                   {sourcesToShow.map((source) => (
                     <li key={source.studentId}>
-                      <button type="button" className="ask-source" onClick={() => onSourceClick(source)}>
+                      <div
+                        className="ask-source"
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => {
+                          // Don't navigate if the click was the end of a text selection — let the user copy.
+                          if ((window.getSelection()?.toString() ?? '').length > 0) {
+                            return;
+                          }
+                          onSourceClick(source);
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' || event.key === ' ') {
+                            event.preventDefault();
+                            onSourceClick(source);
+                          }
+                        }}
+                      >
                         <div className="ask-source-header">
                           <span className="ask-source-id">[{source.studentId}]</span>
                           <span className="ask-source-name">{source.fullName}</span>
@@ -94,7 +117,7 @@ export function AskPanel({ enabled, disabledReason, debugMode, onAnswerChange, o
                           <span className="ask-source-category">{formatCategoryLabel(source.category)}</span>
                         </div>
                         <p className="ask-source-narrative">{source.narrative}</p>
-                      </button>
+                      </div>
                     </li>
                   ))}
                 </ul>

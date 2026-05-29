@@ -545,6 +545,31 @@ describe('App', () => {
     });
   });
 
+  it('does not filter or list sources when a safeguarding answer cites nobody', async () => {
+    const user = userEvent.setup();
+    const safeguardingAnswer: SafeguardingAnswer = {
+      // A "no relevant records" reply that cites no [Sxxxx] ids, yet retrieved sources exist.
+      answer: 'There are no records of fire-related incidents in the data provided.',
+      sources: [
+        { studentId: 'S99999', fullName: 'Zephyr Unlisted', yearGroup: 'Year 9', schoolId: 'SCH-WESTBROOK', schoolName: 'Westbrook College', trustName: null, category: 'neglect', date: '2026-05-01', narrative: 'Retrieved but irrelevant.', score: 0.4 },
+      ],
+      debug: null,
+    };
+    installFetchMock([baseResponse, baseResponse], [], safeguardingAnswer);
+
+    renderApp();
+    await waitForInitialSearch();
+
+    await user.type(screen.getByLabelText('Safeguarding question'), 'fire incidents');
+    await user.click(screen.getByRole('button', { name: 'Ask' }));
+
+    await screen.findByText(/no records of fire-related incidents/i);
+    // No student-id constraint applied, and the retrieved-but-uncited source is not listed.
+    expect(lastSearchRequest().studentIds).toEqual([]);
+    expect(screen.queryByRole('button', { name: /Student: S99999/ })).not.toBeInTheDocument();
+    expect(screen.queryByText('Zephyr Unlisted')).not.toBeInTheDocument();
+  });
+
   it('initialises the student-id constraint from the sId deep-link parameter', async () => {
     window.history.replaceState(null, '', '/?sId=S11209&sId=S11761');
     installFetchMock();
