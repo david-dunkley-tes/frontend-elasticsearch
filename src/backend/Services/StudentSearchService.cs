@@ -5,10 +5,10 @@ namespace StudentSearch.Api.Services;
 
 public sealed class StudentSearchService(IStudentSearchIndex studentSearchIndex) : IStudentSearchService
 {
-    public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
+    public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope, AuthorizedSchoolScope? safeguardingScope = null)
     {
         var normalized = NormalizeRequest(request);
-        return studentSearchIndex.SearchAsync(normalized, authorizationScope);
+        return studentSearchIndex.SearchAsync(normalized, authorizationScope, safeguardingScope);
     }
 
     private static SearchRequest NormalizeRequest(SearchRequest request)

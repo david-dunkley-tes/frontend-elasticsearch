@@ -65,15 +65,18 @@ The `/feature-done` workflow (defined in `AGENTS.md` and `.codex/commands/featur
 All `/api/*` routes require a bearer token. Anything outside `/api` is unauthenticated — the health checks at `/health/live` and `/health/ready`, and the build metadata at `/version`. The token is a base64url-encoded JSON payload (no signature — dev only):
 
 ```json
-{ "sub": "...", "name": "...", "scopes": [{ "type": "global" | "school" | "trust" | "schoolGroup", ... }] }
+{ "sub": "...", "name": "...", "scopes": [{ "type": "global" | "school" | "trust", "role": ["DSL"], ... }] }
 ```
+
+Scope types are `global`, `trust`, `school` (there is no `schoolGroup` — a multi-school user is just several `school` scopes). Each scope may carry a `role` list; roles are looked up by name (see `Models/Roles.cs`).
 
 Flow:
 1. `DevBearerAuthenticationMiddleware` decodes the token, validates scope shapes, and writes the scopes JSON into a `"scopes"` claim on `ClaimsPrincipal`.
-2. `AuthorizationScopeResolver.ResolveAsync(User)` reads that claim and produces an `AuthorizedSchoolScope` — either `Global` or a concrete allowed `SchoolIds` set. `trust` scopes are expanded by reading `students.seed.json` and collecting every school under that trust. Scopes are additive across the array.
-3. `ElasticsearchStudentSearchIndex` applies the scope as a filter clause on both the main query and every facet aggregation, so unauthorized data never appears in results, facet counts, or drill-downs.
+2. `AuthorizationScopeResolver.ResolveAsync(User)` produces the **viewing** scope — `Global` or a concrete `SchoolIds` set (roles ignored; `trust` expanded via `students.seed.json`; scopes additive).
+3. `AuthorizationScopeResolver.ResolveRoleScopeAsync(User, role)` produces the scope for a given **role**: for each school the most specific covering scope wins (`school` > `trust` > `global`) and the school is included when that scope's `role` list contains the role. This is generic — safeguarding is just the first consumer, calling it with `Roles.Dsl`.
+4. `ElasticsearchStudentSearchIndex` applies the **viewing** scope as a filter on the main query and every facet aggregation, and separately **nulls `safeguardingLog`** for any student whose school is outside the caller's **DSL** scope — so a user can view trust-wide pupils yet see safeguarding only for the schools they are DSL for. `SafeguardingController` gates `availability`/`Ask` on the DSL scope (`AuthorizedSchoolScope.GrantsAnySchool`) and restricts RAG retrieval to it.
 
-When adding endpoints that touch student data, always resolve the scope and pass it through to the index layer — do not assume the user can see everything.
+When adding endpoints that touch student data, always resolve the viewing scope (and, for safeguarding, the DSL role scope) and pass it through to the index layer — do not assume the user can see everything.
 
 ### Search behaviour invariants
 

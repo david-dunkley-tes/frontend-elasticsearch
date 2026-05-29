@@ -62,7 +62,7 @@ public sealed class StudentSearchServiceTests
         public SearchRequest CapturedRequest { get; private set; } = null!;
         public AuthorizedSchoolScope CapturedAuthorizationScope { get; private set; } = null!;
 
-        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
+        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope, AuthorizedSchoolScope? safeguardingScope = null)
         {
             CapturedRequest = request;
             CapturedAuthorizationScope = authorizationScope;

@@ -15,7 +15,8 @@ public sealed class SearchController(
     public async Task<ActionResult<SearchResponse>> Search(SearchRequest request)
     {
         var authorizationScope = await authorizationScopeResolver.ResolveAsync(User);
-        var response = await searchService.SearchAsync(request, authorizationScope);
+        var safeguardingScope = await authorizationScopeResolver.ResolveRoleScopeAsync(User, Roles.Dsl);
+        var response = await searchService.SearchAsync(request, authorizationScope, safeguardingScope);
         return Ok(response);
     }
 }

@@ -14,10 +14,20 @@ public sealed class SafeguardingController(
     IAuthorizationScopeResolver authorizationScopeResolver) : ControllerBase
 {
     [HttpGet("availability")]
-    public ActionResult<SafeguardingAvailability> Availability()
+    public async Task<ActionResult<SafeguardingAvailability>> Availability()
     {
-        var reason = ragConfiguration.IsEnabled ? null : ragConfiguration.DisabledReason;
-        return Ok(new SafeguardingAvailability(ragConfiguration.IsEnabled, reason));
+        if (!ragConfiguration.IsEnabled)
+        {
+            return Ok(new SafeguardingAvailability(false, ragConfiguration.DisabledReason));
+        }
+
+        var safeguardingScope = await authorizationScopeResolver.ResolveRoleScopeAsync(User, Roles.Dsl);
+        if (!safeguardingScope.GrantsAnySchool)
+        {
+            return Ok(new SafeguardingAvailability(false, "Your role does not include safeguarding (DSL) access."));
+        }
+
+        return Ok(new SafeguardingAvailability(true, null));
     }
 
     [HttpPost]
@@ -33,8 +43,19 @@ public sealed class SafeguardingController(
             });
         }
 
-        var authorizationScope = await authorizationScopeResolver.ResolveAsync(User);
-        var answer = await safeguardingService.AskAsync(request, authorizationScope, cancellationToken);
+        var safeguardingScope = await authorizationScopeResolver.ResolveRoleScopeAsync(User, Roles.Dsl);
+        if (!safeguardingScope.GrantsAnySchool)
+        {
+            return StatusCode(StatusCodes.Status403Forbidden, new ProblemDetails
+            {
+                Status = StatusCodes.Status403Forbidden,
+                Title = "Safeguarding access denied",
+                Detail = "Your role does not include safeguarding (DSL) access.",
+            });
+        }
+
+        // Retrieval is restricted to the schools the caller is DSL for, not their full viewing scope.
+        var answer = await safeguardingService.AskAsync(request, safeguardingScope, cancellationToken);
         return Ok(answer);
     }
 }

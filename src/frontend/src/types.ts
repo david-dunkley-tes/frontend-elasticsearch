@@ -98,11 +98,10 @@ export type SaveSearchRequest = {
 };
 
 export type AuthorizationScope = {
-  type: string;
+  type: 'global' | 'trust' | 'school';
   schoolId?: string;
   trustId?: string;
-  schoolGroupId?: string;
-  schoolIds?: string[];
+  role?: string[];
 };
 
 export type SafeguardingSource = {

@@ -47,6 +47,77 @@ public sealed class AuthorizationScopeResolverTests : IDisposable
         Assert.True(scope.IsGlobal);
     }
 
+    [Fact]
+    public async Task ResolveRoleScopeAsync_MoreSpecificSchoolScopeOverridesTrustRole()
+    {
+        WriteSeedData([
+            CreateRecord("SCH-KINGFISHER", "TRUST-COASTAL"),
+            CreateRecord("SCH-OAKWOOD", "TRUST-COASTAL"),
+            CreateRecord("SCH-EASTGATE", "TRUST-COASTAL")
+        ]);
+        var resolver = CreateResolver();
+        var user = CreateUser([
+            new AuthorizationScope("school", SchoolId: "SCH-KINGFISHER", Role: ["DSL"]),
+            new AuthorizationScope("trust", TrustId: "TRUST-COASTAL")
+        ]);
+
+        var dsl = await resolver.ResolveRoleScopeAsync(user, Roles.Dsl);
+
+        // School scope (most specific) grants DSL for Kingfisher; the trust scope carries no DSL role
+        // for the rest, so only Kingfisher is in the safeguarding scope.
+        Assert.False(dsl.IsGlobal);
+        Assert.Equal(["SCH-KINGFISHER"], dsl.SchoolIds.ToArray());
+    }
+
+    [Fact]
+    public async Task ResolveRoleScopeAsync_MoreSpecificEmptyRoleOverridesBroaderDsl()
+    {
+        WriteSeedData([
+            CreateRecord("SCH-KINGFISHER", "TRUST-COASTAL"),
+            CreateRecord("SCH-OAKWOOD", "TRUST-COASTAL"),
+            CreateRecord("SCH-EASTGATE", "TRUST-COASTAL")
+        ]);
+        var resolver = CreateResolver();
+        var user = CreateUser([
+            new AuthorizationScope("global", Role: ["DSL"]),
+            new AuthorizationScope("school", SchoolId: "SCH-KINGFISHER", Role: [])
+        ]);
+
+        var dsl = await resolver.ResolveRoleScopeAsync(user, Roles.Dsl);
+
+        // Global grants DSL everywhere, but the more specific (empty-role) school scope removes Kingfisher.
+        Assert.False(dsl.IsGlobal);
+        Assert.Equal(["SCH-EASTGATE", "SCH-OAKWOOD"], dsl.SchoolIds.Order(StringComparer.OrdinalIgnoreCase).ToArray());
+    }
+
+    [Fact]
+    public async Task ResolveRoleScopeAsync_GlobalDslRoleGrantsEverySchool()
+    {
+        WriteSeedData([
+            CreateRecord("SCH-A", "TRUST-1"),
+            CreateRecord("SCH-B", null)
+        ]);
+        var resolver = CreateResolver();
+        var user = CreateUser([new AuthorizationScope("global", Role: ["DSL"])]);
+
+        var dsl = await resolver.ResolveRoleScopeAsync(user, Roles.Dsl);
+
+        Assert.True(dsl.IsGlobal);
+    }
+
+    [Fact]
+    public async Task ResolveRoleScopeAsync_GrantsNothingWithoutTheRole()
+    {
+        WriteSeedData([CreateRecord("SCH-KINGFISHER", "TRUST-COASTAL")]);
+        var resolver = CreateResolver();
+        var user = CreateUser([new AuthorizationScope("school", SchoolId: "SCH-KINGFISHER")]);
+
+        var dsl = await resolver.ResolveRoleScopeAsync(user, Roles.Dsl);
+
+        Assert.False(dsl.IsGlobal);
+        Assert.Empty(dsl.SchoolIds);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(_tempRoot))

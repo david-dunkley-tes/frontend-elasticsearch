@@ -28,11 +28,13 @@ public sealed class SearchControllerTests
     {
         public SearchRequest CapturedRequest { get; private set; } = null!;
         public AuthorizedSchoolScope CapturedAuthorizationScope { get; private set; } = null!;
+        public AuthorizedSchoolScope? CapturedSafeguardingScope { get; private set; }
 
-        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
+        public Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope, AuthorizedSchoolScope? safeguardingScope = null)
         {
             CapturedRequest = request;
             CapturedAuthorizationScope = authorizationScope;
+            CapturedSafeguardingScope = safeguardingScope;
             return Task.FromResult(response);
         }
     }
@@ -40,6 +42,11 @@ public sealed class SearchControllerTests
     private sealed class StubAuthorizationScopeResolver(AuthorizedSchoolScope authorizationScope) : IAuthorizationScopeResolver
     {
         public Task<AuthorizedSchoolScope> ResolveAsync(ClaimsPrincipal user)
+        {
+            return Task.FromResult(authorizationScope);
+        }
+
+        public Task<AuthorizedSchoolScope> ResolveRoleScopeAsync(ClaimsPrincipal user, string role)
         {
             return Task.FromResult(authorizationScope);
         }

@@ -24,14 +24,15 @@ public sealed class ElasticsearchStudentSearchIndex(
         new("classTeacher", "Class", "classGroup.label", RawLabel: true)
     ];
 
-    public async Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope)
+    public async Task<SearchResponse> SearchAsync(SearchRequest request, AuthorizedSchoolScope authorizationScope, AuthorizedSchoolScope? safeguardingScope = null)
     {
         var stopwatch = Stopwatch.StartNew();
         var query = BuildSearchPayload(request, authorizationScope);
         var response = await gateway.SendAsync(HttpMethod.Post, $"/{configuration.IndexName}/_search", query);
         stopwatch.Stop();
 
-        return MapResponse(request, query, response!, stopwatch.ElapsedMilliseconds);
+        // Null means "not restricted separately" — fall back to the viewing scope.
+        return MapResponse(request, query, response!, stopwatch.ElapsedMilliseconds, safeguardingScope ?? authorizationScope);
     }
 
     private static JsonObject BuildSearchPayload(SearchRequest request, AuthorizedSchoolScope authorizationScope)
@@ -330,12 +331,16 @@ public sealed class ElasticsearchStudentSearchIndex(
         };
     }
 
-    private SearchResponse MapResponse(SearchRequest request, JsonObject query, JsonNode response, long backendTookMs)
+    private SearchResponse MapResponse(SearchRequest request, JsonObject query, JsonNode response, long backendTookMs, AuthorizedSchoolScope safeguardingScope)
     {
         var hitsNode = response["hits"]!;
         var total = hitsNode["total"]?["value"]?.GetValue<int>() ?? 0;
         var tookMs = response["took"]?.GetValue<int>() ?? 0;
         var results = new List<StudentSearchResult>();
+
+        var safeguardingSchools = safeguardingScope.IsGlobal
+            ? null
+            : new HashSet<string>(safeguardingScope.SchoolIds, StringComparer.OrdinalIgnoreCase);
 
         foreach (var hit in hitsNode["hits"]!.AsArray())
         {
@@ -347,7 +352,12 @@ public sealed class ElasticsearchStudentSearchIndex(
             var source = hit["_source"]!;
             var record = source.Deserialize<StudentRecord>(JsonDefaults.Web)!;
             var highlight = hit["highlight"]?.Deserialize<Dictionary<string, string[]>>(JsonDefaults.Web) ?? new();
-            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.ClassGroup, record.SafeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
+
+            // Hide safeguarding from anyone without the DSL role for that student's school.
+            var canSeeSafeguarding = safeguardingSchools is null || safeguardingSchools.Contains(record.School.Id);
+            var safeguardingLog = canSeeSafeguarding ? record.SafeguardingLog : null;
+
+            results.Add(new StudentSearchResult(record.Student.Id, record.Student, record.School, record.Trust, record.ClassGroup, safeguardingLog, highlight, hit["_score"]?.GetValue<double?>()));
         }
 
         return new SearchResponse(

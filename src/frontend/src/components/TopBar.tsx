@@ -7,6 +7,8 @@ type TopBarProps = {
 };
 
 export function TopBar({ presets, activePresetId, onPresetChange }: TopBarProps) {
+  const activePreset = presets.find((preset) => preset.id === activePresetId);
+
   return (
     <header className="topbar">
       <div>
@@ -29,6 +31,7 @@ export function TopBar({ presets, activePresetId, onPresetChange }: TopBarProps)
             ))}
           </select>
         </label>
+        {activePreset && <p className="user-switcher-description">{activePreset.description}</p>}
       </div>
     </header>
   );

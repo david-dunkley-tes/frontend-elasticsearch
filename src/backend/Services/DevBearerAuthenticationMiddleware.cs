@@ -86,7 +86,6 @@ public sealed class DevBearerAuthenticationMiddleware(RequestDelegate next)
             "global" => true,
             "school" => !string.IsNullOrWhiteSpace(scope.SchoolId),
             "trust" => !string.IsNullOrWhiteSpace(scope.TrustId),
-            "schoolgroup" => scope.SchoolIds is { Count: > 0 },
             _ => false
         };
     }

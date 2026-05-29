@@ -2,7 +2,7 @@ import React from 'react';
 import { Bug, Database } from 'lucide-react';
 import { deleteSavedSearch, getSafeguardingAvailability, getVersionInfo, listSavedSearches, reindexStudents, saveSearch, searchStudents } from './api/studentSearchApi';
 import { useActiveUser } from './auth/ActiveUserContext';
-import { USER_PRESETS, type UserPresetId } from './auth/userPresets';
+import { hasDslRole, USER_PRESETS, type UserPresetId } from './auth/userPresets';
 import { AskPanel } from './components/AskPanel';
 import { DebugPanel } from './components/DebugPanel';
 import { DemoBanner } from './components/DemoBanner';
@@ -16,16 +16,18 @@ import { TopBar } from './components/TopBar';
 import { citedStudentIds } from './safeguarding';
 import type { Facet, Filters, SafeguardingAnswer, SafeguardingSource, SavedSearch, SearchResponse } from './types';
 
-const reservedSearchParams = new Set(['q', 'page']);
+const reservedSearchParams = new Set(['q', 'page', 'sId']);
 
 type UrlSearchState = {
   query: string;
   filters: Filters;
+  studentIds: string[];
   page: number;
 };
 
 export function App() {
-  const { presetId, setPresetId } = useActiveUser();
+  const { presetId, preset, setPresetId } = useActiveUser();
+  const canUseSafeguarding = hasDslRole(preset.token);
   const initialSearchState = React.useMemo(() => readSearchStateFromUrl(), []);
   const [query, setQuery] = React.useState(initialSearchState.query);
   const [filters, setFilters] = React.useState<Filters>(initialSearchState.filters);
@@ -41,23 +43,26 @@ export function App() {
   const [error, setError] = React.useState<string | null>(null);
   const [availability, setAvailability] = React.useState<{ available: boolean; reason: string | null }>({ available: false, reason: null });
   const [safeguardingAnswer, setSafeguardingAnswer] = React.useState<SafeguardingAnswer | null>(null);
-  const [safeguardingStudentIds, setSafeguardingStudentIds] = React.useState<string[]>([]);
+  // Exact student-id constraint (ES `terms` on student.id). Populated by a `?sId=` deep link or by the
+  // safeguarding Ask auto-apply; ANDed with the viewing scope, so an unauthorised id just yields 0 results.
+  const [studentIds, setStudentIds] = React.useState<string[]>(initialSearchState.studentIds);
   const pageSize = 10;
 
   const requestPayload = React.useMemo(
-    () => ({ query, filters, studentIds: safeguardingStudentIds, sort: query.trim() ? 'relevance' : 'studentName', page, pageSize, debugMode }),
-    [query, filters, safeguardingStudentIds, page, debugMode],
+    () => ({ query, filters, studentIds, sort: query.trim() ? 'relevance' : 'studentName', page, pageSize, debugMode }),
+    [query, filters, studentIds, page, debugMode],
   );
 
   React.useEffect(() => {
-    writeSearchStateToUrl({ query, filters, page });
-  }, [query, filters, page]);
+    writeSearchStateToUrl({ query, filters, studentIds, page });
+  }, [query, filters, studentIds, page]);
 
   React.useEffect(() => {
     function applyUrlState() {
       const next = readSearchStateFromUrl();
       setQuery(next.query);
       setFilters(next.filters);
+      setStudentIds(next.studentIds);
       setPage(next.page);
     }
 
@@ -99,19 +104,19 @@ export function App() {
       .catch(() => setAvailability({ available: false, reason: 'Safeguarding availability check failed' }));
   }, [presetId]);
 
-  // When a safeguarding answer arrives, narrow the results to exactly the cited
-  // students: clear the free-text query and facet filters so the list shows that
-  // set unambiguously. Clearing the answer (e.g. on preset change) releases it.
+  // When a safeguarding answer arrives, narrow the results to exactly the cited students:
+  // clear the free-text query and facet filters so the list shows that set unambiguously.
+  // (We don't clear on a null answer — that would wipe a `?sId=` deep link on load;
+  // preset changes clear the constraint explicitly in changePreset.)
   React.useEffect(() => {
     if (!safeguardingAnswer) {
-      setSafeguardingStudentIds([]);
       return;
     }
 
     setQuery('');
     setFilters({});
     setPage(1);
-    setSafeguardingStudentIds(citedStudentIds(safeguardingAnswer));
+    setStudentIds(citedStudentIds(safeguardingAnswer));
   }, [safeguardingAnswer]);
 
   React.useEffect(() => {
@@ -250,7 +255,7 @@ export function App() {
     setPage(1);
     setSelectedId(null);
     setResponse(null);
-    setSafeguardingStudentIds([]);
+    setStudentIds([]);
   }
 
   function handleSourceClick(source: SafeguardingSource) {
@@ -258,9 +263,8 @@ export function App() {
     setSelectedId(source.studentId);
   }
 
-  function clearSafeguardingFilter() {
-    setSafeguardingAnswer(null);
-    setSafeguardingStudentIds([]);
+  function clearStudentId(studentId: string) {
+    setStudentIds((current) => current.filter((id) => id !== studentId));
   }
 
   return (
@@ -276,17 +280,19 @@ export function App() {
         filters={filters}
         response={response}
         onClear={clearFilter}
-        safeguardingStudentCount={safeguardingStudentIds.length}
-        onClearSafeguarding={clearSafeguardingFilter}
+        studentIds={studentIds}
+        onClearStudentId={clearStudentId}
       />
-      <AskPanel
-        key={presetId}
-        enabled={availability.available}
-        disabledReason={availability.reason}
-        debugMode={debugMode}
-        onAnswerChange={setSafeguardingAnswer}
-        onSourceClick={handleSourceClick}
-      />
+      {canUseSafeguarding && (
+        <AskPanel
+          key={presetId}
+          enabled={availability.available}
+          disabledReason={availability.reason}
+          debugMode={debugMode}
+          onAnswerChange={setSafeguardingAnswer}
+          onSourceClick={handleSourceClick}
+        />
+      )}
 
       <section className="workspace">
         <aside className="filters-panel">
@@ -404,14 +410,19 @@ function readSearchStateFromUrl(): UrlSearchState {
     }
   }
 
+  const studentIds = Array.from(
+    new Set(searchParams.getAll('sId').map((value) => value.trim()).filter(Boolean)),
+  );
+
   return {
     query: searchParams.get('q') ?? '',
     filters,
+    studentIds,
     page: Number.isFinite(page) && page > 0 ? page : 1,
   };
 }
 
-function writeSearchStateToUrl({ query, filters, page }: UrlSearchState) {
+function writeSearchStateToUrl({ query, filters, studentIds, page }: UrlSearchState) {
   const searchParams = new URLSearchParams();
   const trimmedQuery = query.trim();
 
@@ -424,6 +435,12 @@ function writeSearchStateToUrl({ query, filters, page }: UrlSearchState) {
       if (value.trim()) {
         searchParams.append(facetId, value);
       }
+    }
+  }
+
+  for (const studentId of studentIds) {
+    if (studentId.trim()) {
+      searchParams.append('sId', studentId);
     }
   }
 

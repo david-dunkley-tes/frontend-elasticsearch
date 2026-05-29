@@ -125,6 +125,22 @@ public sealed class ElasticsearchStudentSearchIndexTests
         Assert.Contains("\"must_not\"", gateway.CapturedBody!.ToJsonString());
     }
 
+    [Fact]
+    public async Task SearchAsync_HidesSafeguardingLogForSchoolsOutsideSafeguardingScope()
+    {
+        var gateway = new SingleHitGateway("SCH-OAKWOOD");
+        var index = new ElasticsearchStudentSearchIndex(gateway, CreateConfiguration());
+
+        var outside = await index.SearchAsync(new SearchRequest(), AuthorizedSchoolScope.Global, new AuthorizedSchoolScope(false, ["SCH-KINGFISHER"]));
+        Assert.Null(outside.Results[0].SafeguardingLog);
+
+        var inside = await index.SearchAsync(new SearchRequest(), AuthorizedSchoolScope.Global, new AuthorizedSchoolScope(false, ["SCH-OAKWOOD"]));
+        Assert.NotNull(inside.Results[0].SafeguardingLog);
+
+        var global = await index.SearchAsync(new SearchRequest(), AuthorizedSchoolScope.Global, AuthorizedSchoolScope.Global);
+        Assert.NotNull(global.Results[0].SafeguardingLog);
+    }
+
     private static SearchConfiguration CreateConfiguration()
     {
         var configuration = new Microsoft.Extensions.Configuration.ConfigurationManager
@@ -169,6 +185,43 @@ public sealed class ElasticsearchStudentSearchIndexTests
         {
             throw new NotSupportedException();
         }
+    }
+
+    private sealed class SingleHitGateway(string schoolId) : IElasticsearchGateway
+    {
+        public Task<JsonNode?> SendAsync(HttpMethod method, string path, JsonNode? body = null)
+        {
+            var json = $$"""
+            {
+              "took": 1,
+              "hits": {
+                "total": { "value": 1 },
+                "hits": [
+                  {
+                    "_score": 1.0,
+                    "_source": {
+                      "student": { "id": "S1", "foreName": "Ava", "surname": "Stone", "fullName": "Ava Stone", "yearGroup": "Year 4" },
+                      "school": { "id": "{{schoolId}}", "name": "Test School", "address": "1 Test Road" },
+                      "trust": null,
+                      "classGroup": { "name": "Acorn", "teacher": "Ms Test" },
+                      "safeguardingLog": { "category": "Bullying", "date": "2026-05-01", "narrative": "Test narrative." }
+                    }
+                  }
+                ]
+              },
+              "aggregations": {
+                "yearGroup": { "values": { "buckets": [] } },
+                "school": { "values": { "buckets": [] } },
+                "trust": { "values": { "buckets": [] }, "missing": { "doc_count": 0 } },
+                "classTeacher": { "values": { "buckets": [] } }
+              }
+            }
+            """;
+            return Task.FromResult<JsonNode?>(JsonNode.Parse(json));
+        }
+
+        public Task<string> SendRawAsync(HttpMethod method, string path, string body) => throw new NotSupportedException();
+        public Task<bool> DeleteIfExistsAsync(string path) => throw new NotSupportedException();
     }
 
     private sealed class StubWebHostEnvironment : Microsoft.AspNetCore.Hosting.IWebHostEnvironment

@@ -536,12 +536,44 @@ describe('App', () => {
       expect(lastSearchRequest().studentIds).toEqual(['S11209', 'S11761']);
     });
 
-    const clearChip = await screen.findByRole('button', { name: /safeguarding match: 2 students/i });
-    await user.click(clearChip);
+    // Each cited student shows as its own removable pill; removing one drops just that id.
+    expect(screen.getByRole('button', { name: /Student: S11209/ })).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: /Student: S11761/ }));
 
     await waitFor(() => {
-      expect(lastSearchRequest().studentIds).toEqual([]);
+      expect(lastSearchRequest().studentIds).toEqual(['S11209']);
     });
+  });
+
+  it('initialises the student-id constraint from the sId deep-link parameter', async () => {
+    window.history.replaceState(null, '', '/?sId=S11209&sId=S11761');
+    installFetchMock();
+
+    renderApp();
+    await waitForInitialSearch();
+
+    expect(lastSearchRequest().studentIds).toEqual(['S11209', 'S11761']);
+    expect(screen.getByRole('button', { name: /Student: S11209/ })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /Student: S11761/ })).toBeInTheDocument();
+  });
+
+  it('hides the Ask Safeguarding feature and shows a role description for a non-DSL user', async () => {
+    const user = userEvent.setup();
+    installFetchMock();
+
+    renderApp();
+    await waitForInitialSearch();
+
+    // Default user (Kingfisher DSL) can see the Ask panel.
+    expect(screen.getByText('Ask the safeguarding records (AI)')).toBeInTheDocument();
+
+    await user.selectOptions(screen.getByLabelText('Active demo user'), 'authority');
+
+    await waitFor(() => {
+      expect(screen.queryByText('Ask the safeguarding records (AI)')).not.toBeInTheDocument();
+    });
+    // The discrete role description explains why.
+    expect(screen.getByText(/is not a DSL/i)).toBeInTheDocument();
   });
 
   it('switches the active user when the dropdown changes and sends a new auth token', async () => {
